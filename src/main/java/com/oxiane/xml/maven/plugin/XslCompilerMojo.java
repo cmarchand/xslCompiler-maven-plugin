@@ -29,12 +29,27 @@ package com.oxiane.xml.maven.plugin;
 import java.io.File;
 import java.io.FileFilter;
 import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.StandardOpenOption;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Enumeration;
 import java.util.List;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipFile;
+import javax.xml.transform.SourceLocator;
+import javax.xml.transform.stream.StreamSource;
+import net.sf.saxon.Configuration;
+import net.sf.saxon.s9api.MessageListener;
+import net.sf.saxon.s9api.Processor;
+import net.sf.saxon.s9api.QName;
+import net.sf.saxon.s9api.SaxonApiException;
+import net.sf.saxon.s9api.Serializer;
+import net.sf.saxon.s9api.XdmAtomicValue;
+import net.sf.saxon.s9api.XdmNode;
+import net.sf.saxon.s9api.XsltCompiler;
+import net.sf.saxon.s9api.XsltTransformer;
 import org.apache.maven.plugin.AbstractMojo;
 import org.apache.maven.plugin.MojoExecutionException;
 import org.apache.maven.plugin.MojoFailureException;
@@ -54,7 +69,7 @@ public class XslCompilerMojo extends AbstractMojo {
      * Location of the compiled XSL
      */
     @Parameter(defaultValue = "${project.build.directory}/classes", required = true)
-    private File reportDir;
+    private File compileDir;
 
     /**
      * The compile and run classPath elements
@@ -82,7 +97,31 @@ public class XslCompilerMojo extends AbstractMojo {
         List<File> xslFiles = findAllXSLs(xslDir);
         try {
             String urlSrcBaseDir = xslDir.toURI().toURL().toString();
-        } catch(Exception ex) {
+            Path urlSrcPath = xslDir.toPath();
+            Processor processor = new Processor(new Configuration());
+            XsltCompiler compiler = processor.newXsltCompiler();
+            XsltTransformer transformer = compiler.compile(new StreamSource(this.getClass().getResourceAsStream("/xslImportRewriter.xsl"))).load();
+            transformer.setParameter(new QName("p_libraries"), new XdmAtomicValue(libraries));
+            transformer.setParameter(new QName("p_baseUrl"), new XdmAtomicValue(urlSrcBaseDir));
+            transformer.setMessageListener(new MessageListener() {
+
+                @Override
+                public void message(XdmNode xn, boolean bln, SourceLocator sl) {
+                    getLog().debug(xn.toString());
+                }
+            });
+            for(File f:xslFiles) {
+                Path relative = urlSrcPath.relativize(f.toPath());
+                getLog().debug(LOG_PREFIX+"relative: "+relative.toString());
+                Path dest = compileDir.toPath().resolve(relative);
+                getLog().debug(LOG_PREFIX+"dest: "+dest.toString());
+                Serializer serializer = processor.newSerializer(Files.newOutputStream(dest, StandardOpenOption.CREATE));
+                serializer.setOutputProperty(Serializer.Property.INDENT, "yes");
+                transformer.setDestination(serializer);
+                transformer.setSource(new StreamSource(f));
+                transformer.transform();
+            }
+        } catch(SaxonApiException | IOException ex) {
             throw new MojoExecutionException(ex.getMessage(),ex);
         }
     }

@@ -67,7 +67,6 @@
             <groupId>net.sf.saxon</groupId>
             <artifactId>Saxon-HE</artifactId>
             <version>9.6.0-7</version>
-            <scope>provided</scope>
         </dependency>
         <dependency>
             <groupId>xml-resolver</groupId>
@@ -165,7 +164,11 @@
                     <excludes>
                         <exclude>pom.xml</exclude>
                         <exclude>LICENSE</exclude>
+                        <exclude>src/main/resources/xslImportRewriter.xsl</exclude>
                     </excludes>
+                    <extraExtensions>
+                        <xsl>xml</xsl>
+                    </extraExtensions>
                 </configuration>
                 <executions>
                     <execution>
