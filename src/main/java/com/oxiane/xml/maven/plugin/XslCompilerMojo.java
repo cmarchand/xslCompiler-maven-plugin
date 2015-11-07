@@ -110,6 +110,8 @@ public class XslCompilerMojo extends AbstractMojo {
                     getLog().debug(xn.toString());
                 }
             });
+            // si on a pas de classes Java, il faut créer le répertoire destination
+            compileDir.mkdirs();
             for(File f:xslFiles) {
                 Path relative = urlSrcPath.relativize(f.toPath());
                 getLog().debug(LOG_PREFIX+"relative: "+relative.toString());
