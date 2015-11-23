@@ -111,12 +111,14 @@ public class XslCompilerMojo extends AbstractMojo {
                 }
             });
             // si on a pas de classes Java, il faut créer le répertoire destination
-            compileDir.mkdirs();
+//            compileDir.mkdirs();
             for(File f:xslFiles) {
                 Path relative = urlSrcPath.relativize(f.toPath());
                 getLog().debug(LOG_PREFIX+"relative: "+relative.toString());
                 Path dest = compileDir.toPath().resolve(relative);
                 getLog().debug(LOG_PREFIX+"dest: "+dest.toString());
+                // on crée le répertoire...
+                dest.getParent().toFile().mkdirs();
                 Serializer serializer = processor.newSerializer(Files.newOutputStream(dest, StandardOpenOption.CREATE));
                 serializer.setOutputProperty(Serializer.Property.INDENT, "yes");
                 transformer.setDestination(serializer);
