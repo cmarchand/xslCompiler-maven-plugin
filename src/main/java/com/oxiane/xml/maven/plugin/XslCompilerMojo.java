@@ -1,22 +1,20 @@
 /**
- * Copyright © 2015, Christophe Marchand
- * All rights reserved.
+ * Copyright © 2015, Christophe Marchand All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions are met:
- *     * Redistributions of source code must retain the above copyright
- *       notice, this list of conditions and the following disclaimer.
- *     * Redistributions in binary form must reproduce the above copyright
- *       notice, this list of conditions and the following disclaimer in the
- *       documentation and/or other materials provided with the distribution.
- *     * Neither the name of the <organization> nor the
- *       names of its contributors may be used to endorse or promote products
- *       derived from this software without specific prior written permission.
+ * modification, are permitted provided that the following conditions are met: *
+ * Redistributions of source code must retain the above copyright notice, this
+ * list of conditions and the following disclaimer. * Redistributions in binary
+ * form must reproduce the above copyright notice, this list of conditions and
+ * the following disclaimer in the documentation and/or other materials provided
+ * with the distribution. * Neither the name of the <organization> nor the names
+ * of its contributors may be used to endorse or promote products derived from
+ * this software without specific prior written permission.
  *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
- * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
- * WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
- * DISCLAIMED. IN NO EVENT SHALL <COPYRIGHT HOLDER> BE LIABLE FOR ANY
+ * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
+ * AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+ * ARE DISCLAIMED. IN NO EVENT SHALL <COPYRIGHT HOLDER> BE LIABLE FOR ANY
  * DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
  * (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
  * LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
@@ -35,6 +33,8 @@ import java.nio.file.StandardOpenOption;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Enumeration;
+import java.util.HashMap;
+import java.util.LinkedList;
 import java.util.List;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipFile;
@@ -60,11 +60,12 @@ import org.apache.maven.plugins.annotations.ResolutionScope;
 
 /**
  * The Mojo
+ *
  * @author ext-cmarchand
  */
 @Mojo(name = "xsl-compiler", defaultPhase = LifecyclePhase.COMPILE, requiresDependencyResolution = ResolutionScope.COMPILE_PLUS_RUNTIME)
 public class XslCompilerMojo extends AbstractMojo {
-    
+
     /**
      * Location of the compiled XSL
      */
@@ -74,26 +75,44 @@ public class XslCompilerMojo extends AbstractMojo {
     /**
      * The compile and run classPath elements
      */
-    @Parameter( defaultValue = "${project.compileClasspathElements}", readonly = true, required = true )
+    @Parameter(defaultValue = "${project.compileClasspathElements}", readonly = true, required = true)
     private List<String> classpathElements;
 
     /**
      * The archive extensions (comma delimited) to look in
      */
-    @Parameter( defaultValue = "jar")
+    @Parameter(defaultValue = "jar")
     private String archiveExtensions;
-    
+
     /**
      * Location of the XSL sources
      */
     @Parameter(defaultValue = "${basedir}/src/main/xsl", required = true)
     private File xslDir;
 
+    @Parameter
+    private PostCompiler[] compilers;
+
     private String[] extensions = null;
 
     @Override
     public void execute() throws MojoExecutionException, MojoFailureException {
-        String libraries=buildLibrariesList();
+        String libraries = buildLibrariesList();
+        // creates a hash-structured for post-compilers
+        HashMap<File, List<File>> compilersToApply = new HashMap<>();
+        if (compilers != null) {
+            for (PostCompiler pc : compilers) {
+                File compiler = pc.getCompiler();
+                for (File source : pc.getSources()) {
+                    List<File> localCompilers = compilersToApply.get(source);
+                    if (localCompilers == null) {
+                        localCompilers = new LinkedList<>();
+                        compilersToApply.put(source, localCompilers);
+                    }
+                    localCompilers.add(compiler);
+                }
+            }
+        }
         List<File> xslFiles = findAllXSLs(xslDir);
         try {
             String urlSrcBaseDir = xslDir.toURI().toURL().toString();
@@ -110,62 +129,75 @@ public class XslCompilerMojo extends AbstractMojo {
                     getLog().debug(xn.toString());
                 }
             });
-            // si on a pas de classes Java, il faut créer le répertoire destination
-//            compileDir.mkdirs();
-            for(File f:xslFiles) {
+            for (File f : xslFiles) {
                 Path relative = urlSrcPath.relativize(f.toPath());
-                getLog().debug(LOG_PREFIX+"relative: "+relative.toString());
+                getLog().debug(LOG_PREFIX + "relative: " + relative.toString());
                 Path dest = compileDir.toPath().resolve(relative);
-                getLog().debug(LOG_PREFIX+"dest: "+dest.toString());
+                getLog().debug(LOG_PREFIX + "dest: " + dest.toString());
                 // on crée le répertoire...
                 dest.getParent().toFile().mkdirs();
                 Serializer serializer = processor.newSerializer(Files.newOutputStream(dest, StandardOpenOption.CREATE));
                 serializer.setOutputProperty(Serializer.Property.INDENT, "yes");
-                transformer.setDestination(serializer);
-                transformer.setSource(new StreamSource(f));
-                transformer.transform();
+                XsltTransformer start = transformer;
+                XsltTransformer current = start;
+                List<File> postCompilers = compilersToApply.get(f);
+                if (postCompilers != null) {
+                    for (File pc : postCompilers) {
+                        getLog().info("adding post-compiler " + pc.getName() + " for " + f.getName());
+                        XsltTransformer comp = compiler.compile(new StreamSource(pc)).load();
+                        current.setDestination(comp);
+                        current = comp;
+                    }
+                }
+                current.setDestination(serializer);
+                start.setSource(new StreamSource(f));
+                start.transform();
             }
-        } catch(SaxonApiException | IOException ex) {
-            throw new MojoExecutionException(ex.getMessage(),ex);
+        } catch (SaxonApiException | IOException ex) {
+            throw new MojoExecutionException(ex.getMessage(), ex);
         }
     }
+
     protected String buildLibrariesList() {
         StringBuilder sb = new StringBuilder();
-        for(String s: classpathElements) {
-            getLog().debug(LOG_PREFIX+s);
-            if(isArchive(s)) {
+        for (String s : classpathElements) {
+            getLog().debug(LOG_PREFIX + s);
+            if (isArchive(s)) {
                 try {
                     String lName = processJarFile(s);
-                    if(lName!=null) {
+                    if (lName != null) {
                         sb.append(lName).append(",");
                     }
                 } catch (IOException ex) {
                     getLog().error(ex.getMessage());
-                    if(getLog().isWarnEnabled()) {
+                    if (getLog().isWarnEnabled()) {
                         getLog().warn(ex);
                     }
                 }
             }
         }
-        if(sb.length()>0) sb.deleteCharAt(sb.length()-1);
+        if (sb.length() > 0) {
+            sb.deleteCharAt(sb.length() - 1);
+        }
         return sb.toString();
     }
+
     private String processJarFile(String jarFileName) throws IOException {
         File jarFile = new File(jarFileName);
-        if(!jarFile.exists()) {
-            getLog().warn(LOG_PREFIX+jarFileName+" does not exists");
+        if (!jarFile.exists()) {
+            getLog().warn(LOG_PREFIX + jarFileName + " does not exists");
             return null;
         }
         try (ZipFile zipFile = new ZipFile(jarFile)) {
-            for(Enumeration<? extends ZipEntry> enumer=zipFile.entries();enumer.hasMoreElements();) {
+            for (Enumeration<? extends ZipEntry> enumer = zipFile.entries(); enumer.hasMoreElements();) {
                 ZipEntry ze = enumer.nextElement();
-                if(ze.getName().endsWith("pom.xml")) {
-                    String middle = ze.getName().substring(15, ze.getName().length()-8);
+                if (ze.getName().endsWith("pom.xml")) {
+                    String middle = ze.getName().substring(15, ze.getName().length() - 8);
                     int pos = middle.indexOf("/");
                     String groupId = middle.substring(0, pos);
-                    String artifactId = middle.substring(pos+1);
-                    getLog().debug(LOG_PREFIX+"groupId="+groupId+" artifactId="+artifactId);
-                    return artifactId+":";
+                    String artifactId = middle.substring(pos + 1);
+                    getLog().debug(LOG_PREFIX + "groupId=" + groupId + " artifactId=" + artifactId);
+                    return artifactId + ":";
                 }
             }
         }
@@ -173,8 +205,8 @@ public class XslCompilerMojo extends AbstractMojo {
     }
 
     /**
-     * Recursively find any files whoose name ends '.xspec'
-     * under the directory xspecTestDir
+     * Recursively find any files whoose name ends '.xspec' under the directory
+     * xspecTestDir
      *
      * @param xslDir The directory to search for XSpec files
      *
@@ -201,14 +233,15 @@ public class XslCompilerMojo extends AbstractMojo {
         }
         return specs;
     }
+
     private boolean isArchive(String archiveName) {
-        if(extensions==null) {
+        if (extensions == null) {
             extensions = archiveExtensions.toUpperCase().split(",");
         }
         String an = archiveName.toUpperCase();
         boolean isArchive = false;
-        int count=0;
-        while(!isArchive && count<extensions.length) {
+        int count = 0;
+        while (!isArchive && count < extensions.length) {
             isArchive = an.endsWith(extensions[count]);
             count++;
         }
