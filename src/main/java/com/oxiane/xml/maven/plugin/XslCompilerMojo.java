@@ -1,20 +1,22 @@
 /**
- * Copyright © 2015, Christophe Marchand All rights reserved.
+ * Copyright © 2015, Christophe Marchand
+ * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions are met: *
- * Redistributions of source code must retain the above copyright notice, this
- * list of conditions and the following disclaimer. * Redistributions in binary
- * form must reproduce the above copyright notice, this list of conditions and
- * the following disclaimer in the documentation and/or other materials provided
- * with the distribution. * Neither the name of the <organization> nor the names
- * of its contributors may be used to endorse or promote products derived from
- * this software without specific prior written permission.
+ * modification, are permitted provided that the following conditions are met:
+ *     * Redistributions of source code must retain the above copyright
+ *       notice, this list of conditions and the following disclaimer.
+ *     * Redistributions in binary form must reproduce the above copyright
+ *       notice, this list of conditions and the following disclaimer in the
+ *       documentation and/or other materials provided with the distribution.
+ *     * Neither the name of the <organization> nor the
+ *       names of its contributors may be used to endorse or promote products
+ *       derived from this software without specific prior written permission.
  *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
- * AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
- * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
- * ARE DISCLAIMED. IN NO EVENT SHALL <COPYRIGHT HOLDER> BE LIABLE FOR ANY
+ * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
+ * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+ * WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+ * DISCLAIMED. IN NO EVENT SHALL <COPYRIGHT HOLDER> BE LIABLE FOR ANY
  * DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
  * (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
  * LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
@@ -24,9 +26,15 @@
  */
 package com.oxiane.xml.maven.plugin;
 
+import java.io.BufferedReader;
+import java.io.BufferedWriter;
+import java.io.ByteArrayInputStream;
+import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.FileFilter;
+import java.io.FileOutputStream;
 import java.io.IOException;
+import java.io.OutputStreamWriter;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardOpenOption;
@@ -36,20 +44,22 @@ import java.util.Enumeration;
 import java.util.HashMap;
 import java.util.LinkedList;
 import java.util.List;
+import java.util.regex.MatchResult;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipFile;
-import javax.xml.transform.SourceLocator;
 import javax.xml.transform.stream.StreamSource;
 import net.sf.saxon.Configuration;
-import net.sf.saxon.s9api.MessageListener;
 import net.sf.saxon.s9api.Processor;
-import net.sf.saxon.s9api.QName;
 import net.sf.saxon.s9api.SaxonApiException;
 import net.sf.saxon.s9api.Serializer;
-import net.sf.saxon.s9api.XdmAtomicValue;
-import net.sf.saxon.s9api.XdmNode;
 import net.sf.saxon.s9api.XsltCompiler;
 import net.sf.saxon.s9api.XsltTransformer;
+import org.apache.commons.io.filefilter.DirectoryFileFilter;
+import org.apache.commons.io.filefilter.WildcardFileFilter;
+import org.apache.commons.io.input.XmlStreamReader;
+import org.apache.commons.lang.StringUtils;
 import org.apache.maven.plugin.AbstractMojo;
 import org.apache.maven.plugin.MojoExecutionException;
 import org.apache.maven.plugin.MojoFailureException;
@@ -87,8 +97,8 @@ public class XslCompilerMojo extends AbstractMojo {
     /**
      * Location of the XSL sources
      */
-    @Parameter(defaultValue = "${basedir}/src/main/xsl", required = true)
-    private File xslDir;
+    @Parameter(required = true)
+    private com.oxiane.xml.maven.plugin.Source[] sources;
 
     @Parameter
     private PostCompiler[] compilers;
@@ -97,7 +107,7 @@ public class XslCompilerMojo extends AbstractMojo {
 
     @Override
     public void execute() throws MojoExecutionException, MojoFailureException {
-        String libraries = buildLibrariesList();
+        Pattern libraries = buildLibrariesList();
         // creates a hash-structured for post-compilers
         HashMap<File, List<File>> compilersToApply = new HashMap<>();
         if (compilers != null) {
@@ -113,60 +123,107 @@ public class XslCompilerMojo extends AbstractMojo {
                 }
             }
         }
-        List<File> xslFiles = findAllXSLs(xslDir);
-        try {
-            String urlSrcBaseDir = xslDir.toURI().toURL().toString();
-            Path urlSrcPath = xslDir.toPath();
-            Processor processor = new Processor(new Configuration());
-            XsltCompiler compiler = processor.newXsltCompiler();
-            XsltTransformer transformer = compiler.compile(new StreamSource(this.getClass().getResourceAsStream("/xslImportRewriter.xsl"))).load();
-            transformer.setParameter(new QName("p_libraries"), new XdmAtomicValue(libraries));
-            transformer.setParameter(new QName("p_baseUrl"), new XdmAtomicValue(urlSrcBaseDir));
-            transformer.setMessageListener(new MessageListener() {
-
-                @Override
-                public void message(XdmNode xn, boolean bln, SourceLocator sl) {
-                    getLog().debug(xn.toString());
-                }
-            });
-            for (File f : xslFiles) {
-                Path relative = urlSrcPath.relativize(f.toPath());
-                getLog().debug(LOG_PREFIX + "relative: " + relative.toString());
-                Path dest = compileDir.toPath().resolve(relative);
-                getLog().debug(LOG_PREFIX + "dest: " + dest.toString());
-                // on crée le répertoire...
-                dest.getParent().toFile().mkdirs();
-                Serializer serializer = processor.newSerializer(Files.newOutputStream(dest, StandardOpenOption.CREATE));
-                serializer.setOutputProperty(Serializer.Property.INDENT, "yes");
-                XsltTransformer start = transformer;
-                XsltTransformer current = start;
-                List<File> postCompilers = compilersToApply.get(f);
-                if (postCompilers != null) {
-                    for (File pc : postCompilers) {
-                        getLog().info("adding post-compiler " + pc.getName() + " for " + f.getName());
-                        XsltTransformer comp = compiler.compile(new StreamSource(pc)).load();
-                        current.setDestination(comp);
-                        current = comp;
+        for(Source source:sources) {
+            List<File> xslFiles = findAllFiles(source);
+            try {
+                Path urlSrcPath = source.getDir().toPath();
+                Processor processor = new Processor(Configuration.newConfiguration());
+                XsltCompiler compiler = processor.newXsltCompiler();
+                Pattern uriPattern = Pattern.compile(URI_REGEX);
+                for (File f : xslFiles) {
+                    Path relative = urlSrcPath.relativize(f.toPath());
+                    Path dest = compileDir.toPath().resolve(relative);
+                    getLog().debug(LOG_PREFIX + "file: "+f.getName()+" relative: " + relative.toString() + " dest: " + dest.toString());
+                    // on crée le répertoire...
+                    dest.getParent().toFile().mkdirs();
+                    List<File> postCompilers = compilersToApply.get(f);
+                    XmlStreamReader reader = new XmlStreamReader(f);
+                    try (BufferedReader br = new BufferedReader(reader)) {
+                        String line = br.readLine();
+                        ByteArrayOutputStream baos = new ByteArrayOutputStream();
+                        BufferedWriter bw = new BufferedWriter(new OutputStreamWriter(baos));
+                        while(line!=null) {
+                            Matcher l = libraries.matcher(line);
+                            if(l.find()) {
+                                for(int i=1;i<=l.groupCount();i++) {
+                                    if(i==1) {
+                                        bw.append(line.substring(0,l.start(i)));
+                                    } else {
+                                        bw.append(line.substring(l.end(i-1),l.start(i)));
+                                    }
+                                    String substring = line.substring(l.start(i), i==l.groupCount()?line.length():l.end(i));
+//                                    getLog().debug("Processing "+substring);
+                                    Matcher m = uriPattern.matcher(substring);
+                                    if(m.find()) {
+                                        MatchResult mr = m.toMatchResult();
+//                                        getLog().debug("uri is "+mr.group());
+                                        String uri = mr.group();
+                                        String relativeUri = relative.toString();
+                                        int depth = relativeUri.split("/").length;
+                                        String[] values = new String[depth];
+                                        for(int k=0;k<depth-1;k++) {
+                                            values[k]="..";
+                                        }
+                                        values[depth-1]=StringUtils.substringAfter(substring, ":/");
+                                        String newUri = StringUtils.join(values, "/");
+//                                        getLog().debug("newUri is "+newUri);
+                                        bw.append(newUri);
+                                        bw.append(substring.substring(uri.length()));
+                                    } else {
+                                        bw.append(substring);
+                                    }
+                                }
+                            } else {
+                                bw.append(line);
+                            }
+                            bw.newLine();
+                            line = br.readLine();
+                        }
+                        bw.flush();
+                        if (postCompilers != null) {
+                            getLog().debug(f.getName()+" has postCompilers");
+                            XsltTransformer current = null;
+                            XsltTransformer start = null;
+                            for (File pc : postCompilers) {
+                                getLog().info("adding post-compiler " + pc.getName() + " for " + f.getName());
+                                XsltTransformer comp = compiler.compile(new StreamSource(pc)).load();
+                                if(current!=null) {
+                                    current.setDestination(comp);
+                                }
+                                current = comp;
+                                if(start==null) start=comp;
+                            }
+                            Serializer serializer = processor.newSerializer(Files.newOutputStream(dest, StandardOpenOption.CREATE));
+                            serializer.setOutputProperty(Serializer.Property.INDENT, "yes");
+                            current.setDestination(serializer);
+                            start.setSource(new StreamSource(new ByteArrayInputStream(baos.toByteArray())));
+                            start.transform();
+                        } else {
+                            getLog().debug("direct write to "+dest.toString());
+                            FileOutputStream fos = new FileOutputStream(dest.toFile());
+                            fos.write(baos.toByteArray());
+                            fos.flush();
+                            fos.close();
+                        }
+                        bw.close();
                     }
                 }
-                current.setDestination(serializer);
-                start.setSource(new StreamSource(f));
-                start.transform();
+            } catch (SaxonApiException | IOException ex) {
+                throw new MojoExecutionException(ex.getMessage(), ex);
             }
-        } catch (SaxonApiException | IOException ex) {
-            throw new MojoExecutionException(ex.getMessage(), ex);
         }
     }
 
-    protected String buildLibrariesList() {
+    protected Pattern buildLibrariesList() {
         StringBuilder sb = new StringBuilder();
+        sb.append("(");
         for (String s : classpathElements) {
             getLog().debug(LOG_PREFIX + s);
             if (isArchive(s)) {
                 try {
                     String lName = processJarFile(s);
                     if (lName != null) {
-                        sb.append(lName).append(",");
+                        sb.append(lName).append("|");
                     }
                 } catch (IOException ex) {
                     getLog().error(ex.getMessage());
@@ -176,10 +233,13 @@ public class XslCompilerMojo extends AbstractMojo {
                 }
             }
         }
-        if (sb.length() > 0) {
+        if (sb.length() > 1) {
             sb.deleteCharAt(sb.length() - 1);
         }
-        return sb.toString();
+        sb.append(")");
+        Pattern ret = Pattern.compile(sb.toString());
+        getLog().info("Libraries pattern: "+ret.toString());
+        return ret;
     }
 
     private String processJarFile(String jarFileName) throws IOException {
@@ -205,30 +265,35 @@ public class XslCompilerMojo extends AbstractMojo {
     }
 
     /**
-     * Recursively find any files whoose name ends '.xspec' under the directory
-     * xspecTestDir
+     * Recursively find any files whoose name ends '.xsl' under the directory
+     * xsltDir
      *
      * @param xslDir The directory to search for XSpec files
      *
-     * @return List of XSpec files
+     * @return List of files
      */
-    private List<File> findAllXSLs(final File xslDir) {
+    private List<File> findAllFiles(final Source source) {
         final List<File> specs = new ArrayList<>();
-        if (xslDir.exists()) {
-            final File[] specFiles = xslDir.listFiles(new FileFilter() {
-                @Override
-                public boolean accept(final File file) {
-                    return file.isFile() && file.getName().endsWith(".xsl");
-                }
-            });
+        if (source.getDir().exists()) {
+            final File[] specFiles = source.getDir().listFiles((FileFilter)new WildcardFileFilter(source.getFilespecs()));
             specs.addAll(Arrays.asList(specFiles));
-            for (final File subDir : xslDir.listFiles(new FileFilter() {
-                @Override
-                public boolean accept(final File file) {
-                    return file.isDirectory();
+            if(source.isRecurse()) {
+                for (final File subDir : source.getDir().listFiles((FileFilter)DirectoryFileFilter.INSTANCE)) {
+                    specs.addAll(findAllFiles(source,subDir));
                 }
-            })) {
-                specs.addAll(findAllXSLs(subDir));
+            }
+        }
+        return specs;
+    }
+    private List<File> findAllFiles(final Source source,File dir) {
+        final List<File> specs = new ArrayList<>();
+        if (dir.exists()) {
+            final File[] specFiles = dir.listFiles((FileFilter)new WildcardFileFilter(source.getFilespecs()));
+            specs.addAll(Arrays.asList(specFiles));
+            if(source.isRecurse()) {
+                for (final File subDir : dir.listFiles((FileFilter)DirectoryFileFilter.INSTANCE)) {
+                    specs.addAll(findAllFiles(source,subDir));
+                }
             }
         }
         return specs;
@@ -248,5 +313,39 @@ public class XslCompilerMojo extends AbstractMojo {
         return isArchive;
     }
     private static final transient String LOG_PREFIX = "[xslCompiler] ";
+    private static final transient String URI_REGEX = 
+            "((([A-Za-z])[A-Za-z0-9+\\-\\.]*):((//(((([A-Za-z0-9\\-\\._~!$&'()*+,;=:]|(%[0-9A-Fa-f][0-9A-Fa-f]))*@))?"+
+            "((\\[(((((([0-9A-Fa-f]){0,4}:)){6}((([0-9A-Fa-f]){0,4}:([0-9A-Fa-f]){0,4})|(([0-9]|([1-9][0-9])|(1([0-9]){2})"+
+            "|(2[0-4][0-9])|(25[0-5]))\\.([0-9]|([1-9][0-9])|(1([0-9]){2})|(2[0-4][0-9])|(25[0-5]))\\.([0-9]|([1-9][0-9])"+
+            "|(1([0-9]){2})|(2[0-4][0-9])|(25[0-5]))\\.([0-9]|([1-9][0-9])|(1([0-9]){2})|(2[0-4][0-9])|(25[0-5])))))|(::((("+
+            "[0-9A-Fa-f]){0,4}:)){5}((([0-9A-Fa-f]){0,4}:([0-9A-Fa-f]){0,4})|(([0-9]|([1-9][0-9])|(1([0-9]){2})|(2[0-4][0-9])"+
+            "|(25[0-5]))\\.([0-9]|([1-9][0-9])|(1([0-9]){2})|(2[0-4][0-9])|(25[0-5]))\\.([0-9]|([1-9][0-9])|(1([0-9]){2})|"+
+            "(2[0-4][0-9])|(25[0-5]))\\.([0-9]|([1-9][0-9])|(1([0-9]){2})|(2[0-4][0-9])|(25[0-5])))))|((([0-9A-Fa-f]){0,4})?:"+
+            ":((([0-9A-Fa-f]){0,4}:)){4}((([0-9A-Fa-f]){0,4}:([0-9A-Fa-f]){0,4})|(([0-9]|([1-9][0-9])|(1([0-9]){2})|(2[0-4]"+
+            "[0-9])|(25[0-5]))\\.([0-9]|([1-9][0-9])|(1([0-9]){2})|(2[0-4][0-9])|(25[0-5]))\\.([0-9]|([1-9][0-9])|(1([0-9]){2})"+
+            "|(2[0-4][0-9])|(25[0-5]))\\.([0-9]|([1-9][0-9])|(1([0-9]){2})|(2[0-4][0-9])|(25[0-5])))))|(((((([0-9A-Fa-f]){0,4}:)"+
+            ")?([0-9A-Fa-f]){0,4}))?::((([0-9A-Fa-f]){0,4}:)){3}((([0-9A-Fa-f]){0,4}:([0-9A-Fa-f]){0,4})|(([0-9]|([1-9][0-9])|"+
+            "(1([0-9]){2})|(2[0-4][0-9])|(25[0-5]))\\.([0-9]|([1-9][0-9])|(1([0-9]){2})|(2[0-4][0-9])|(25[0-5]))\\.([0-9]|([1-9]"+
+            "[0-9])|(1([0-9]){2})|(2[0-4][0-9])|(25[0-5]))\\.([0-9]|([1-9][0-9])|(1([0-9]){2})|(2[0-4][0-9])|(25[0-5])))))|"+
+            "(((((([0-9A-Fa-f]){0,4}:)){0,2}([0-9A-Fa-f]){0,4}))?::((([0-9A-Fa-f]){0,4}:)){2}((([0-9A-Fa-f]){0,4}:([0-9A-Fa-f]"+
+            "){0,4})|(([0-9]|([1-9][0-9])|(1([0-9]){2})|(2[0-4][0-9])|(25[0-5]))\\.([0-9]|([1-9][0-9])|(1([0-9]){2})|(2[0-4]"+
+            "[0-9])|(25[0-5]))\\.([0-9]|([1-9][0-9])|(1([0-9]){2})|(2[0-4][0-9])|(25[0-5]))\\.([0-9]|([1-9][0-9])|(1([0-9])"+
+            "{2})|(2[0-4][0-9])|(25[0-5])))))|(((((([0-9A-Fa-f]){0,4}:)){0,3}([0-9A-Fa-f]){0,4}))?::([0-9A-Fa-f]){0,4}:"+
+            "((([0-9A-Fa-f]){0,4}:([0-9A-Fa-f]){0,4})|(([0-9]|([1-9][0-9])|(1([0-9]){2})|(2[0-4][0-9])|(25[0-5]))\\.([0-9]|"+
+            "([1-9][0-9])|(1([0-9]){2})|(2[0-4][0-9])|(25[0-5]))\\.([0-9]|([1-9][0-9])|(1([0-9]){2})|(2[0-4][0-9])|(25[0-5]))"+
+            "\\.([0-9]|([1-9][0-9])|(1([0-9]){2})|(2[0-4][0-9])|(25[0-5])))))|(((((([0-9A-Fa-f]){0,4}:)){0,4}([0-9A-Fa-f])"+
+            "{0,4}))?::((([0-9A-Fa-f]){0,4}:([0-9A-Fa-f]){0,4})|(([0-9]|([1-9][0-9])|(1([0-9]){2})|(2[0-4][0-9])|(25[0-5]))\\."+
+            "([0-9]|([1-9][0-9])|(1([0-9]){2})|(2[0-4][0-9])|(25[0-5]))\\.([0-9]|([1-9][0-9])|(1([0-9]){2})|(2[0-4][0-9])|"+
+            "(25[0-5]))\\.([0-9]|([1-9][0-9])|(1([0-9]){2})|(2[0-4][0-9])|(25[0-5])))))|(((((([0-9A-Fa-f]){0,4}:)){0,5}"+
+            "([0-9A-Fa-f]){0,4}))?::([0-9A-Fa-f]){0,4})|(((((([0-9A-Fa-f]){0,4}:)){0,6}([0-9A-Fa-f]){0,4}))?::))|(v([0-9A-Fa-f])"+
+            "+\\.(([A-Za-z0-9\\-\\._~]|[!$&'()*+,;=]|:))+))\\])|(([0-9]|([1-9][0-9])|(1([0-9]){2})|(2[0-4][0-9])|(25[0-5]))\\."+
+            "([0-9]|([1-9][0-9])|(1([0-9]){2})|(2[0-4][0-9])|(25[0-5]))\\.([0-9]|([1-9][0-9])|(1([0-9]){2})|(2[0-4][0-9])|"+
+            "(25[0-5]))\\.([0-9]|([1-9][0-9])|(1([0-9]){2})|(2[0-4][0-9])|(25[0-5])))|(([A-Za-z0-9\\-\\._~]|"+
+            "(%[0-9A-Fa-f][0-9A-Fa-f])|[!$&'()*+,;=]))*)((:([0-9])*))?)((/(([A-Za-z0-9\\-\\._~]|(%[0-9A-Fa-f][0-9A-Fa-f])"+
+            "|[!$&'()*+,;=]|:|@))*))*)|(/(((([A-Za-z0-9\\-\\._~]|(%[0-9A-Fa-f][0-9A-Fa-f])|[!$&'()*+,;=]|:|@))+((/("+
+            "([A-Za-z0-9\\-\\._~]|(%[0-9A-Fa-f][0-9A-Fa-f])|[!$&'()*+,;=]|:|@))*))*))?)|((([A-Za-z0-9\\-\\._~]|(%[0-9A-Fa-f][0-9A-Fa-f])"+
+            "|[!$&'()*+,;=]|:|@))+((/(([A-Za-z0-9\\-\\._~]|(%[0-9A-Fa-f][0-9A-Fa-f])|[!$&'()*+,;=]|:|@))*))*)|)"+
+            "((\\?((([A-Za-z0-9\\-\\._~]|(%[0-9A-Fa-f][0-9A-Fa-f])|[!$&'()*+,;=]|:|@)|/|\\?))*))?((#((([A-Za-z0-9\\-\\._~]|"+
+            "(%[0-9A-Fa-f][0-9A-Fa-f])|[!$&'()*+,;=]|:|@)|/|\\?))*))?)";
 
 }
