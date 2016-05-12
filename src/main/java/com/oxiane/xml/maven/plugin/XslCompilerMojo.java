@@ -143,40 +143,48 @@ public class XslCompilerMojo extends AbstractMojo {
                         ByteArrayOutputStream baos = new ByteArrayOutputStream();
                         BufferedWriter bw = new BufferedWriter(new OutputStreamWriter(baos));
                         while(line!=null) {
-                            Matcher l = libraries.matcher(line);
-                            if(l.find()) {
-                                for(int i=1;i<=l.groupCount();i++) {
-                                    if(i==1) {
-                                        bw.append(line.substring(0,l.start(i)));
-                                    } else {
-                                        bw.append(line.substring(l.end(i-1),l.start(i)));
-                                    }
-                                    String substring = line.substring(l.start(i), i==l.groupCount()?line.length():l.end(i));
-//                                    getLog().debug("Processing "+substring);
-                                    Matcher m = uriPattern.matcher(substring);
-                                    if(m.find()) {
-                                        MatchResult mr = m.toMatchResult();
-//                                        getLog().debug("uri is "+mr.group());
-                                        String uri = mr.group();
-                                        String relativeUri = relative.toString();
-                                        int depth = relativeUri.split("/").length;
-                                        String[] values = new String[depth];
-                                        for(int k=0;k<depth-1;k++) {
-                                            values[k]="..";
+                            if(!"()".equals(libraries.pattern())) {
+//                                getLog().info("Il y a des dépendances : ##"+libraries.pattern()+"##");
+                                Matcher l = libraries.matcher(line);
+                                if(l.find()) {
+                                    for(int i=1;i<=l.groupCount();i++) {
+                                        if(i==1) {
+                                            bw.append(line.substring(0,l.start(i)));
+                                        } else {
+                                            bw.append(line.substring(l.end(i-1),l.start(i)));
                                         }
-                                        values[depth-1]=StringUtils.substringAfter(substring, ":/");
-                                        String newUri = StringUtils.join(values, "/");
-//                                        getLog().debug("newUri is "+newUri);
-                                        bw.append(newUri);
-                                        bw.append(substring.substring(uri.length()));
-                                    } else {
-                                        bw.append(substring);
+                                        String substring = line.substring(l.start(i), i==l.groupCount()?line.length():l.end(i));
+                                        getLog().debug("Processing "+substring);
+                                        Matcher m = uriPattern.matcher(substring);
+                                        if(m.find()) {
+                                            MatchResult mr = m.toMatchResult();
+                                            getLog().debug("uri is "+mr.group());
+                                            String uri = mr.group();
+                                            String relativeUri = relative.toString();
+                                            int depth = relativeUri.split("/").length;
+                                            String[] values = new String[depth];
+                                            for(int k=0;k<depth-1;k++) {
+                                                values[k]="..";
+                                            }
+                                            values[depth-1]=StringUtils.substringAfter(substring, ":/");
+                                            String newUri = StringUtils.join(values, "/");
+                                            getLog().debug("newUri is "+newUri);
+                                            bw.append(newUri);
+                                            bw.append(substring.substring(uri.length()));
+                                        } else {
+                                            bw.append(substring);
+                                        }
                                     }
+                                } else {
+                                    bw.append(line);
                                 }
+                                bw.newLine();
                             } else {
+                                // cas où il n'y a pas de dépendance, il n'y a rien à modifier
+//                                getLog().info("Pas de dépendance, on réécrit directement la ligne");
                                 bw.append(line);
+                                bw.newLine();
                             }
-                            bw.newLine();
                             line = br.readLine();
                         }
                         bw.flush();
@@ -238,7 +246,7 @@ public class XslCompilerMojo extends AbstractMojo {
         }
         sb.append(")");
         Pattern ret = Pattern.compile(sb.toString());
-        getLog().info("Libraries pattern: "+ret.toString());
+//        getLog().info("Libraries pattern: "+ret.toString());
         return ret;
     }
 
