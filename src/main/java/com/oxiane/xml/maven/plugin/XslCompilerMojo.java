@@ -138,82 +138,84 @@ public class XslCompilerMojo extends AbstractMojo {
                     dest.getParent().toFile().mkdirs();
                     List<File> postCompilers = compilersToApply.get(f);
                     XmlStreamReader reader = new XmlStreamReader(f);
+                    String encoding = reader.getEncoding();
+                    getLog().debug(f.getName()+" is encoded with "+encoding);
                     try (BufferedReader br = new BufferedReader(reader)) {
                         String line = br.readLine();
                         ByteArrayOutputStream baos = new ByteArrayOutputStream();
-                        BufferedWriter bw = new BufferedWriter(new OutputStreamWriter(baos));
-                        while(line!=null) {
-                            if(!"()".equals(libraries.pattern())) {
-//                                getLog().info("Il y a des dépendances : ##"+libraries.pattern()+"##");
-                                Matcher l = libraries.matcher(line);
-                                if(l.find()) {
-                                    for(int i=1;i<=l.groupCount();i++) {
-                                        if(i==1) {
-                                            bw.append(line.substring(0,l.start(i)));
-                                        } else {
-                                            bw.append(line.substring(l.end(i-1),l.start(i)));
-                                        }
-                                        String substring = line.substring(l.start(i), i==l.groupCount()?line.length():l.end(i));
-                                        getLog().debug("Processing "+substring);
-                                        Matcher m = uriPattern.matcher(substring);
-                                        if(m.find()) {
-                                            MatchResult mr = m.toMatchResult();
-                                            getLog().debug("uri is "+mr.group());
-                                            String uri = mr.group();
-                                            String relativeUri = relative.toString();
-                                            int depth = relativeUri.split("/").length;
-                                            String[] values = new String[depth];
-                                            for(int k=0;k<depth-1;k++) {
-                                                values[k]="..";
+                        try (BufferedWriter bw = new BufferedWriter(new OutputStreamWriter(baos,encoding))) {
+                            while(line!=null) {
+                                if(!"()".equals(libraries.pattern())) {
+                                    getLog().debug("Il y a des dépendances : ##"+libraries.pattern()+"##");
+                                    Matcher l = libraries.matcher(line);
+                                    if(l.find()) {
+                                        for(int i=1;i<=l.groupCount();i++) {
+                                            if(i==1) {
+                                                bw.append(line.substring(0,l.start(i)));
+                                            } else {
+                                                bw.append(line.substring(l.end(i-1),l.start(i)));
                                             }
-                                            values[depth-1]=StringUtils.substringAfter(substring, ":/");
-                                            String newUri = StringUtils.join(values, "/");
-                                            getLog().debug("newUri is "+newUri);
-                                            bw.append(newUri);
-                                            bw.append(substring.substring(uri.length()));
-                                        } else {
-                                            bw.append(substring);
+                                            String substring = line.substring(l.start(i), i==l.groupCount()?line.length():l.end(i));
+                                            getLog().debug("Processing "+substring);
+                                            Matcher m = uriPattern.matcher(substring);
+                                            if(m.find()) {
+                                                MatchResult mr = m.toMatchResult();
+                                                getLog().debug("uri is "+mr.group());
+                                                String uri = mr.group();
+                                                String relativeUri = relative.toString();
+                                                int depth = relativeUri.split("/").length;
+                                                String[] values = new String[depth];
+                                                for(int k=0;k<depth-1;k++) {
+                                                    values[k]="..";
+                                                }
+                                                values[depth-1]=StringUtils.substringAfter(substring, ":/");
+                                                String newUri = StringUtils.join(values, "/");
+                                                getLog().debug("newUri is "+newUri);
+                                                bw.append(newUri);
+                                                bw.append(substring.substring(uri.length()));
+                                            } else {
+                                                bw.append(substring);
+                                            }
                                         }
+                                    } else {
+                                        bw.append(line);
                                     }
+                                    bw.newLine();
                                 } else {
+                                    // cas où il n'y a pas de dépendance, il n'y a rien à modifier
+                                    getLog().debug("Pas de dépendance, on réécrit directement la ligne");
                                     bw.append(line);
+                                    bw.newLine();
                                 }
-                                bw.newLine();
+                                line = br.readLine();
+                            }
+                            bw.flush();
+                            if (postCompilers != null) {
+                                getLog().debug(f.getName()+" has postCompilers");
+                                XsltTransformer current = null;
+                                XsltTransformer start = null;
+                                for (File pc : postCompilers) {
+                                    getLog().debug("adding post-compiler " + pc.getName() + " for " + f.getName());
+                                    XsltTransformer comp = compiler.compile(new StreamSource(pc)).load();
+                                    if(current!=null) {
+                                        current.setDestination(comp);
+                                    }
+                                    current = comp;
+                                    if(start==null) start=comp;
+                                }
+                                Serializer serializer = processor.newSerializer(Files.newOutputStream(dest, StandardOpenOption.CREATE));
+                                serializer.setOutputProperty(Serializer.Property.INDENT, "yes");
+                                current.setDestination(serializer);
+                                start.setSource(new StreamSource(new ByteArrayInputStream(baos.toByteArray())));
+                                start.transform();
                             } else {
-                                // cas où il n'y a pas de dépendance, il n'y a rien à modifier
-//                                getLog().info("Pas de dépendance, on réécrit directement la ligne");
-                                bw.append(line);
-                                bw.newLine();
+                                getLog().debug("direct write to "+dest.toString());
+                                FileOutputStream fos = new FileOutputStream(dest.toFile());
+                                fos.write(baos.toByteArray());
+                                fos.flush();
+                                fos.close();
                             }
-                            line = br.readLine();
                         }
-                        bw.flush();
-                        if (postCompilers != null) {
-                            getLog().debug(f.getName()+" has postCompilers");
-                            XsltTransformer current = null;
-                            XsltTransformer start = null;
-                            for (File pc : postCompilers) {
-                                getLog().info("adding post-compiler " + pc.getName() + " for " + f.getName());
-                                XsltTransformer comp = compiler.compile(new StreamSource(pc)).load();
-                                if(current!=null) {
-                                    current.setDestination(comp);
-                                }
-                                current = comp;
-                                if(start==null) start=comp;
-                            }
-                            Serializer serializer = processor.newSerializer(Files.newOutputStream(dest, StandardOpenOption.CREATE));
-                            serializer.setOutputProperty(Serializer.Property.INDENT, "yes");
-                            current.setDestination(serializer);
-                            start.setSource(new StreamSource(new ByteArrayInputStream(baos.toByteArray())));
-                            start.transform();
-                        } else {
-                            getLog().debug("direct write to "+dest.toString());
-                            FileOutputStream fos = new FileOutputStream(dest.toFile());
-                            fos.write(baos.toByteArray());
-                            fos.flush();
-                            fos.close();
-                        }
-                        bw.close();
                     }
                 }
             } catch (SaxonApiException | IOException ex) {
@@ -246,7 +248,6 @@ public class XslCompilerMojo extends AbstractMojo {
         }
         sb.append(")");
         Pattern ret = Pattern.compile(sb.toString());
-//        getLog().info("Libraries pattern: "+ret.toString());
         return ret;
     }
 

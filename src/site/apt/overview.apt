@@ -1,0 +1,43 @@
+          ---
+      xslCompiler-maven-plugin
+          ---
+      Christophe Marchand
+          ---
+      2016-05-19
+          ---
+
+xslCompiler-maven-plugin
+
+  xslCompiler-maven-plugin is a plugin that compiles XML resources (xml files, DTD, grammars, etc..), to change
+  <library>:/path/to/resources hrefs to relative path, in order to package with jar-with-dependencies
+
+  Normal use is like this :
+
++--------------------------------------------------------
+<plugin>
+    <groupId>com.oxiane.xml</groupId>
+    <artifactId>xslcompiler-maven-plugin</artifactId>
+    <version>2.0-SNAPSHOT</version>
+    <executions>
+        <execution>
+            <phase>compile</phase>
+            <goals>
+                <goal>xsl-compiler</goal>
+            </goals>
+        </execution>
+    </executions>
+    <configuration>
+        <sources>
+            <source>
+                <dir>src/main/xsl</dir>
+                <recurse>true</recurse>
+                <filespecs>
+                    <filespec>*.xsd</filespec>
+                </filespecs>
+            </source>
+        </sources>
+    </configuration>
+</plugin>
++--------------------------------------------------------
+
+  \<dir\> must be a root dir for XML resources. For example, <<<src/main/xsl>>>, <<<src/main/java>>>, etc...

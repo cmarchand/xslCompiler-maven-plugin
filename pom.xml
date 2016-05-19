@@ -7,7 +7,7 @@
     <packaging>maven-plugin</packaging>
 
 
-    <name>XMl Compiler plugin for Maven</name>
+    <name>XML Compiler plugin for Maven</name>
     <description>Compile XML - i.e. transforms URIs with artifactId: protocol for jar-with-dependencies assembly</description>
     <inceptionYear>2015</inceptionYear>
     <url>https://github.com/cmarchand/xslCompiler-maven-plugin</url>
