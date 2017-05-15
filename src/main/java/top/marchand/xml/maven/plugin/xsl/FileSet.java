@@ -89,7 +89,7 @@ public class FileSet {
         excludes.addAll(getDefaultExcludes());
     }
     public static List<String> getDefaultIncludes() {
-        return Arrays.asList(new String[] {"**/*.xsl"});
+        return Arrays.asList(new String[] {"*.xsl", "**/*.xsl"});
     }
     
     public static List<String> getDefaultExcludes() {

@@ -40,6 +40,7 @@ import net.sf.saxon.s9api.XdmNode;
 import net.sf.saxon.s9api.XsltCompiler;
 import net.sf.saxon.s9api.XsltExecutable;
 import net.sf.saxon.s9api.XsltPackage;
+import org.apache.commons.io.FilenameUtils;
 import org.apache.maven.plugin.AbstractMojo;
 import org.apache.maven.plugin.MojoExecutionException;
 import org.apache.maven.plugin.MojoFailureException;
@@ -75,22 +76,33 @@ public class XslCompilerMojo extends AbstractMojo {
     private XsltCompiler compiler;
     private DocumentBuilder builder;
     
+    public static final String ERROR_MESSAGE = "<filesets>\n\t<fileset>\n\t\t<dir>src/main/xsl...</dir>\n\t</fileset>\n</filesets>\n is required in xslCompiler-maven-plugin configuration";
+    
     @Override
     public void execute() throws MojoExecutionException, MojoFailureException {
         Log log = getLog();
         initSaxon();
         Path targetDir = classesDirectory.toPath();
         boolean hasError = false;
+        if(filesets==null) {
+            getLog().error(LOG_PREFIX+"\n"+ERROR_MESSAGE);
+            throw new MojoExecutionException(ERROR_MESSAGE);
+        }
         for(FileSet fs: filesets) {
             Path basedir = new File(fs.getDir()).toPath();
             for(Path p: fs.getFiles(log)) {
                 File sourceFile = basedir.resolve(p).toFile();
-                File targetFile = targetDir.resolve(p).toFile();
+                Path targetPath = p.getParent()==null ? targetDir : targetDir.resolve(p.getParent());
+                String sourceFileName = sourceFile.getName();
+                getLog().debug(LOG_PREFIX+" sourceFileName="+sourceFileName);
+                String targetFileName = FilenameUtils.getBaseName(sourceFileName).concat(".sef");
+                getLog().debug(LOG_PREFIX+" targetFileName="+targetFileName);
+                File targetFile = targetPath.resolve(targetFileName).toFile();
                 try {
                     compileFile(sourceFile, targetFile);
                 } catch (SaxonApiException | FileNotFoundException ex) {
                     hasError = true;
-                    getLog().error("While compiling "+p, ex);
+                    getLog().error(LOG_PREFIX+" While compiling "+p, ex);
                 }
             }
         }
