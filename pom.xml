@@ -3,7 +3,7 @@
 
     <groupId>top.marchand.xml.maven</groupId>
     <artifactId>xslcompiler-maven-plugin</artifactId>
-    <version>1.0.0-RC1</version>
+    <version>1.0.0-RC2</version>
     <packaging>maven-plugin</packaging>
 
 
@@ -186,11 +186,11 @@
 
     <distributionManagement>
         <snapshotRepository>
-            <id>xspec-io.ossrh</id>
+            <id>ossrh</id>
             <url>https://oss.sonatype.org/content/repositories/snapshots</url>
         </snapshotRepository>
         <repository>
-            <id>xspec-io.ossrh</id>
+            <id>ossrh</id>
             <url>https://oss.sonatype.org/service/local/staging/deploy/maven2/</url>
         </repository>
     </distributionManagement>
@@ -236,7 +236,7 @@
                         <version>1.6.7</version>
                         <extensions>true</extensions>
                         <configuration>
-                            <serverId>xspec-io.ossrh</serverId>
+                            <serverId>ossrh</serverId>
                             <nexusUrl>https://oss.sonatype.org/</nexusUrl>
                             <autoReleaseAfterClose>true</autoReleaseAfterClose>
                         </configuration>

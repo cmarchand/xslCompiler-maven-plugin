@@ -31,6 +31,7 @@ import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.nio.file.Path;
 import java.util.List;
+import javax.xml.transform.URIResolver;
 import net.sf.saxon.Configuration;
 import net.sf.saxon.s9api.Axis;
 import net.sf.saxon.s9api.DocumentBuilder;
@@ -49,6 +50,8 @@ import org.apache.maven.plugins.annotations.LifecyclePhase;
 import org.apache.maven.plugins.annotations.Mojo;
 import org.apache.maven.plugins.annotations.Parameter;
 import org.apache.maven.plugins.annotations.ResolutionScope;
+import org.xmlresolver.CatalogSource;
+import org.xmlresolver.Resolver;
 
 /**
  * The Mojo
@@ -72,6 +75,9 @@ public class XslCompilerMojo extends AbstractMojo {
      */
     @Parameter
     private List<FileSet> filesets;
+    
+    @Parameter
+    private File catalog;
     
     private XsltCompiler compiler;
     private DocumentBuilder builder;
@@ -134,6 +140,9 @@ public class XslCompilerMojo extends AbstractMojo {
         Configuration config = Configuration.newConfiguration();
         Processor proc = new Processor(config);
         compiler = proc.newXsltCompiler();
+        Resolver uriResolver = new Resolver();
+        uriResolver.getCatalog().addSource(new CatalogSource.UriCatalogSource(catalog.toURI().toString()));
+        compiler.setURIResolver(uriResolver);
         builder = proc.newDocumentBuilder();
     }
 
