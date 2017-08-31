@@ -28,21 +28,10 @@ package top.marchand.xml.maven.plugin.xsl;
 
 import java.io.File;
 import java.io.FileNotFoundException;
-import java.io.FileOutputStream;
 import java.nio.file.Path;
 import java.util.List;
-import javax.xml.transform.URIResolver;
-import net.sf.saxon.Configuration;
-import net.sf.saxon.s9api.Axis;
-import net.sf.saxon.s9api.DocumentBuilder;
-import net.sf.saxon.s9api.Processor;
 import net.sf.saxon.s9api.SaxonApiException;
-import net.sf.saxon.s9api.XdmNode;
-import net.sf.saxon.s9api.XsltCompiler;
-import net.sf.saxon.s9api.XsltExecutable;
-import net.sf.saxon.s9api.XsltPackage;
 import org.apache.commons.io.FilenameUtils;
-import org.apache.maven.plugin.AbstractMojo;
 import org.apache.maven.plugin.MojoExecutionException;
 import org.apache.maven.plugin.MojoFailureException;
 import org.apache.maven.plugin.logging.Log;
@@ -50,16 +39,14 @@ import org.apache.maven.plugins.annotations.LifecyclePhase;
 import org.apache.maven.plugins.annotations.Mojo;
 import org.apache.maven.plugins.annotations.Parameter;
 import org.apache.maven.plugins.annotations.ResolutionScope;
-import org.xmlresolver.CatalogSource;
-import org.xmlresolver.Resolver;
 
 /**
  * The Mojo
  *
- * @author ext-cmarchand
+ * @author <a href="mailto:christophe@marchand.top">Christophe Marchand</a>
  */
 @Mojo(name = "xsl-compiler", defaultPhase = LifecyclePhase.COMPILE, requiresDependencyResolution = ResolutionScope.COMPILE_PLUS_RUNTIME)
-public class XslCompilerMojo extends AbstractMojo {
+public class XslCompilerMojo extends AbstractCompiler {
 
     /**
      * The directory containing generated classes of the project being tested. 
@@ -77,10 +64,7 @@ public class XslCompilerMojo extends AbstractMojo {
     private List<FileSet> filesets;
     
     @Parameter
-    private File catalog;
-    
-    private XsltCompiler compiler;
-    private DocumentBuilder builder;
+    protected File catalog;
     
     public static final String ERROR_MESSAGE = "<filesets>\n\t<fileset>\n\t\t<dir>src/main/xsl...</dir>\n\t</fileset>\n</filesets>\n is required in xslCompiler-maven-plugin configuration";
     
@@ -116,36 +100,6 @@ public class XslCompilerMojo extends AbstractMojo {
             throw new MojoExecutionException("Error occured while compiling Xslts. See previous log.");
         }
     }
-    
-    private void compileFile(final File sourceFile, final File targetFile) throws SaxonApiException, FileNotFoundException {
-        XdmNode document = builder.build(sourceFile);
-        XdmNode documentRoot = (XdmNode)document.axisIterator(Axis.CHILD).next();
-        if(documentRoot.getNodeName().getLocalName().equals("package")) {
-            compilePackage(documentRoot, targetFile);
-        } else {
-            compileModule(documentRoot, targetFile);
-        }
-    }
-    private void compilePackage(final XdmNode document, final File targetFile) throws SaxonApiException {
-        XsltPackage pack = compiler.compilePackage(document.asSource());
-        pack.save(targetFile);
-        compiler.importPackage(pack);
-    }
-    private void compileModule(final XdmNode document, final File targetFile) throws SaxonApiException, FileNotFoundException {
-        XsltExecutable exec = compiler.compile(document.asSource());
-        targetFile.getParentFile().mkdirs();
-        exec.export(new FileOutputStream(targetFile));
-    }
-    private void initSaxon() {
-        Configuration config = Configuration.newConfiguration();
-        Processor proc = new Processor(config);
-        compiler = proc.newXsltCompiler();
-        Resolver uriResolver = new Resolver();
-        uriResolver.getCatalog().addSource(new CatalogSource.UriCatalogSource(catalog.toURI().toString()));
-        compiler.setURIResolver(uriResolver);
-        builder = proc.newDocumentBuilder();
-    }
-
 
     private static final transient String LOG_PREFIX = "[xslCompiler] ";
     private static final transient String URI_REGEX = 
@@ -182,5 +136,10 @@ public class XslCompilerMojo extends AbstractMojo {
             "|[!$&'()*+,;=]|:|@))+((/(([A-Za-z0-9\\-\\._~]|(%[0-9A-Fa-f][0-9A-Fa-f])|[!$&'()*+,;=]|:|@))*))*)|)"+
             "((\\?((([A-Za-z0-9\\-\\._~]|(%[0-9A-Fa-f][0-9A-Fa-f])|[!$&'()*+,;=]|:|@)|/|\\?))*))?((#((([A-Za-z0-9\\-\\._~]|"+
             "(%[0-9A-Fa-f][0-9A-Fa-f])|[!$&'()*+,;=]|:|@)|/|\\?))*))?)";
+
+    @Override
+    public File getCatalogFile() {
+        return catalog;
+    }
 
 }
