@@ -80,9 +80,17 @@ public abstract class AbstractCompiler extends AbstractMojo {
         Processor proc = new Processor(config);
         compiler = proc.newXsltCompiler();
         Resolver uriResolver = new Resolver();
-        uriResolver.getCatalog().addSource(new CatalogSource.UriCatalogSource(getCatalogFile().toURI().toString()));
+        if(getCatalogFile()!=null) {
+            uriResolver.getCatalog().addSource(new CatalogSource.UriCatalogSource(getCatalogFile().toURI().toString()));
+        }
         compiler.setURIResolver(uriResolver);
         builder = proc.newDocumentBuilder();
     }
+    
+    /**
+     * Becaus ewe may need a compiler elswhere
+     * @return 
+     */
+    protected XsltCompiler getXsltCompiler() { return compiler; }
     
 }
