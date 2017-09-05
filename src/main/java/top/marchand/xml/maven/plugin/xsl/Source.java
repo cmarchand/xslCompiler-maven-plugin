@@ -30,7 +30,7 @@ import java.io.File;
 
 /**
  *
- * @author Christophe Marchand <christophe@marchand.top>
+ * @author <a href="christophe@marchand.top">Christophe Marchand</a>
  */
 public class Source {
     private File dir;

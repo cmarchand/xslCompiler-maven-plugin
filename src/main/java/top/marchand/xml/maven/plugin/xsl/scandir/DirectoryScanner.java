@@ -85,7 +85,7 @@ public class DirectoryScanner {
     /**
      * Returns default includes to use
      * Present to be overwritten.
-     * @return 
+     * @return The default includes
      */
     public List<String> getDefaultIncludes() {
         return FileSet.getDefaultIncludes();
@@ -93,7 +93,7 @@ public class DirectoryScanner {
     /**
      * Returns default excludes to use. 
      * Present to be overwritten.
-     * @return 
+     * @return The default excludes
      */
     public List<String> getDefaultExcludes() {
         return FileSet.getDefaultExcludes();
@@ -129,6 +129,7 @@ public class DirectoryScanner {
     }
     
     protected List<Path> scan(File dir) {
+        log.debug("scanning "+dir.getAbsolutePath());
         ArrayList<Path> ret = new ArrayList<>();
         for(File child:dir.listFiles()) {
             if(child.isDirectory()) {

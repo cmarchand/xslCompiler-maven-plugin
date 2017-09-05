@@ -51,8 +51,21 @@ public abstract class AbstractCompiler extends AbstractMojo {
     protected DocumentBuilder builder;
     protected XsltCompiler compiler;
     
+    /**
+     * The catalog file to use. It may retruns null.
+     * @return The catalog file to use.
+     */
     public abstract File getCatalogFile();
 
+    /**
+     * Compiles a <tt>sourceFile</tt> to a <tt>targetFile</tt>.
+     * If the file is a <tt>&lt;package&gt;</tt>, {@link #compilePackage(net.sf.saxon.s9api.XdmNode, java.io.File) } is called,
+     * else {@link #compileModule(net.sf.saxon.s9api.XdmNode, java.io.File) } is called.
+     * @param sourceFile The source file to compile
+     * @param targetFile The target file to generate
+     * @throws SaxonApiException In case of failure
+     * @throws FileNotFoundException In case of failure
+     */
     protected void compileFile(final File sourceFile, final File targetFile) throws SaxonApiException, FileNotFoundException {
         XdmNode document = builder.build(sourceFile);
         XdmNode documentRoot = (XdmNode) document.axisIterator(Axis.CHILD).next();
@@ -63,18 +76,34 @@ public abstract class AbstractCompiler extends AbstractMojo {
         }
     }
 
+    /**
+     * Compiles a standard XSL module.
+     * @param document The source document
+     * @param targetFile The file to generate
+     * @throws SaxonApiException In case of failure
+     * @throws FileNotFoundException In case of failure
+     */
     protected void compileModule(final XdmNode document, final File targetFile) throws SaxonApiException, FileNotFoundException {
         XsltExecutable exec = compiler.compile(document.asSource());
         targetFile.getParentFile().mkdirs();
         exec.export(new FileOutputStream(targetFile));
     }
 
+    /**
+     * Compiles a package, and adds to to the compiler.
+     * @param document The source document
+     * @param targetFile The file to generate
+     * @throws SaxonApiException In case of failure
+     */
     protected void compilePackage(final XdmNode document, final File targetFile) throws SaxonApiException {
         XsltPackage pack = compiler.compilePackage(document.asSource());
         pack.save(targetFile);
         compiler.importPackage(pack);
     }
 
+    /**
+     * Initialize Saxon configuration
+     */
     protected void initSaxon() {
         Configuration config = Configuration.newConfiguration();
         Processor proc = new Processor(config);
@@ -88,8 +117,14 @@ public abstract class AbstractCompiler extends AbstractMojo {
     }
     
     /**
-     * Becaus ewe may need a compiler elswhere
-     * @return 
+     * Returns the Processor the plugin uses.
+     * @return The processor used
+     */
+    protected Processor getProcessor() { return compiler.getProcessor(); }
+    
+    /**
+     * Because we may need a compiler elswhere
+     * @return The XSL compiler used
      */
     protected XsltCompiler getXsltCompiler() { return compiler; }
     

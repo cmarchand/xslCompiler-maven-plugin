@@ -127,7 +127,7 @@ public class FileSet {
     /**
      * Returns the files that match this FileSet
      * @param log The log to use while scanning. May be <tt>null</tt>
-     * @return 
+     * @return The files that match this FileSet
      */
     public List<Path> getFiles(Log log) {
         if(foundFiles==null) {
@@ -136,4 +136,13 @@ public class FileSet {
         }
         return foundFiles;
     }
+
+    @Override
+    public String toString() {
+        StringBuilder sb = new StringBuilder();
+        sb.append("[dir=").append(dir).append(", includes=").append(includes).append(", excludes=").append(excludes).append("]");
+        return sb.toString();
+    }
+    
+    
 }

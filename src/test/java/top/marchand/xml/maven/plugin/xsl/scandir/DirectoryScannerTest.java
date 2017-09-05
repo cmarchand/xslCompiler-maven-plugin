@@ -29,7 +29,9 @@ package top.marchand.xml.maven.plugin.xsl.scandir;
 import java.io.File;
 import java.nio.file.Path;
 import java.util.List;
+import org.apache.maven.monitor.logging.DefaultLog;
 import org.apache.maven.plugin.logging.Log;
+import org.codehaus.plexus.logging.console.ConsoleLogger;
 import org.junit.Test;
 import static org.junit.Assert.*;
 import org.junit.BeforeClass;
@@ -44,7 +46,7 @@ public class DirectoryScannerTest {
     
     @BeforeClass
     public static void beforeClass() {
-//        log = new DefaultLog(null)
+        log = new DefaultLog(new ConsoleLogger());
     }
     
     @Test
