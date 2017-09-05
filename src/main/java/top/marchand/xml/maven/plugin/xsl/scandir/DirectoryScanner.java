@@ -61,11 +61,12 @@ public class DirectoryScanner {
      * @see FileSet#getDefaultIncludes() 
      * @see FileSet#getDefaultExcludes() 
      */
+    @SuppressWarnings("OverridableMethodCallInConstructor")
     public DirectoryScanner(final File baseDir, final Log log) {
         super();
         this.baseDir = baseDir;
-        this.includes = FileSet.getDefaultIncludes();
-        this.excludes = FileSet.getDefaultExcludes();
+        this.includes = getDefaultIncludes();
+        this.excludes = getDefaultExcludes();
         this.log=log;
     }
     
@@ -80,6 +81,22 @@ public class DirectoryScanner {
         this.includes = fileset.getIncludes();
         this.excludes = fileset.getExcludes();
         this.log=log;
+    }
+    /**
+     * Returns default includes to use
+     * Present to be overwritten.
+     * @return 
+     */
+    public List<String> getDefaultIncludes() {
+        return FileSet.getDefaultIncludes();
+    }
+    /**
+     * Returns default excludes to use. 
+     * Present to be overwritten.
+     * @return 
+     */
+    public List<String> getDefaultExcludes() {
+        return FileSet.getDefaultExcludes();
     }
     /**
      * Returns a list of pathes relative to fileset's basedir
