@@ -46,7 +46,11 @@ public class DirectoryScannerTest {
     
     @BeforeClass
     public static void beforeClass() {
-        log = new DefaultLog(new ConsoleLogger());
+        log = new DefaultLog(new ConsoleLogger(ConsoleLogger.LEVEL_DEBUG, "TEST")) {
+            @Override
+            public boolean isDebugEnabled() { return true; }
+        };
+
     }
     
     @Test
@@ -80,5 +84,16 @@ public class DirectoryScannerTest {
         DirectoryScanner scanner = new DirectoryScanner(fileset, log);
         List<Path> ret = scanner.scan();
         assertEquals("4 files were expected under xml/ dir", 4, ret.size());
+    }
+    
+    @Test
+    public void testFullPath() {
+        FileSet fileset = new FileSet("src/test/resources/DirectoryScanner");
+        fileset.getIncludes().clear();
+        fileset.getIncludes().add("pipes/form/prepare.xml");
+        DirectoryScanner scanner = new DirectoryScanner(fileset, log);
+        List<Path> ret = scanner.scan();
+        assertEquals("Only one file should be found", 1, ret.size());
+        assertEquals("pipes/form/prepare.xml", ret.get(0).toString());
     }
 }

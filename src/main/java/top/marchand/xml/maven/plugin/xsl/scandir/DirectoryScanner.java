@@ -116,6 +116,7 @@ public class DirectoryScanner {
         for(String include: includes) {
             includeMatchers.add(buildPathMatcher(fs, include));
             if(include.contains("**")) isToRecurse = true;
+            else if(include.matches(".*/.+/.*")) isToRecurse = true;
         }
         excludeMatchers = new ArrayList<>(excludes.size());
         for(String exclude: excludes) {
@@ -150,12 +151,14 @@ public class DirectoryScanner {
                             log.debug("[INCLUDE] "+rel+" does not match "+pm);
                     }
                 }
-                for(PathMatcher pm:excludeMatchers) {
-                    if(pm.matches(rel)) {
-                        if(log!=null && log.isDebugEnabled())
-                            log.debug("[EXCLUDE] "+rel+" matches "+pm);
-                        acceptable = false;
-                        break;
+                if(acceptable) {
+                    for(PathMatcher pm:excludeMatchers) {
+                        if(pm.matches(rel)) {
+                            if(log!=null && log.isDebugEnabled())
+                                log.debug("[EXCLUDE] "+rel+" matches "+pm);
+                            acceptable = false;
+                            break;
+                        }
                     }
                 }
                 if(acceptable) ret.add(rel);
