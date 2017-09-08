@@ -130,7 +130,7 @@ public class DirectoryScanner {
     }
     
     protected List<Path> scan(File dir) {
-        log.debug("scanning "+dir.getAbsolutePath());
+//        log.debug("scanning "+dir.getAbsolutePath());
         ArrayList<Path> ret = new ArrayList<>();
         for(File child:dir.listFiles()) {
             if(child.isDirectory()) {
@@ -142,20 +142,20 @@ public class DirectoryScanner {
                 boolean acceptable = false;
                 for(PathMatcher pm:includeMatchers) {
                     if(pm.matches(rel)) {
-                        if(log!=null && log.isDebugEnabled())
-                            log.debug("[INCLUDE] "+rel+" matches "+pm);
+//                        if(log!=null && log.isDebugEnabled())
+//                            log.debug("[INCLUDE] "+rel+" matches "+pm);
                         acceptable = true;
                         break;
-                    } else {
-                        if(log!=null && log.isDebugEnabled())
-                            log.debug("[INCLUDE] "+rel+" does not match "+pm);
+//                    } else {
+//                        if(log!=null && log.isDebugEnabled())
+//                            log.debug("[INCLUDE] "+rel+" does not match "+pm);
                     }
                 }
                 if(acceptable) {
                     for(PathMatcher pm:excludeMatchers) {
                         if(pm.matches(rel)) {
-                            if(log!=null && log.isDebugEnabled())
-                                log.debug("[EXCLUDE] "+rel+" matches "+pm);
+//                            if(log!=null && log.isDebugEnabled())
+//                                log.debug("[EXCLUDE] "+rel+" matches "+pm);
                             acceptable = false;
                             break;
                         }

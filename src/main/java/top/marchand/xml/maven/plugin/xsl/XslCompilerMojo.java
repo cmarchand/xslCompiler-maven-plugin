@@ -27,9 +27,11 @@
 package top.marchand.xml.maven.plugin.xsl;
 
 import java.io.File;
+import java.io.FileInputStream;
 import java.io.FileNotFoundException;
 import java.nio.file.Path;
 import java.util.List;
+import javax.xml.transform.sax.SAXSource;
 import net.sf.saxon.s9api.SaxonApiException;
 import org.apache.commons.io.FilenameUtils;
 import org.apache.maven.plugin.MojoExecutionException;
@@ -39,6 +41,7 @@ import org.apache.maven.plugins.annotations.LifecyclePhase;
 import org.apache.maven.plugins.annotations.Mojo;
 import org.apache.maven.plugins.annotations.Parameter;
 import org.apache.maven.plugins.annotations.ResolutionScope;
+import org.xml.sax.InputSource;
 
 /**
  * The Mojo
@@ -81,18 +84,25 @@ public class XslCompilerMojo extends AbstractCompiler {
         for(FileSet fs: filesets) {
             Path basedir = new File(fs.getDir()).toPath();
             for(Path p: fs.getFiles(log)) {
-                File sourceFile = basedir.resolve(p).toFile();
-                Path targetPath = p.getParent()==null ? targetDir : targetDir.resolve(p.getParent());
-                String sourceFileName = sourceFile.getName();
-                getLog().debug(LOG_PREFIX+" sourceFileName="+sourceFileName);
-                String targetFileName = FilenameUtils.getBaseName(sourceFileName).concat(".sef");
-                getLog().debug(LOG_PREFIX+" targetFileName="+targetFileName);
-                File targetFile = targetPath.resolve(targetFileName).toFile();
                 try {
-                    compileFile(sourceFile, targetFile);
-                } catch (SaxonApiException | FileNotFoundException ex) {
-                    hasError = true;
-                    getLog().error(LOG_PREFIX+" While compiling "+p, ex);
+                    File sourceFile = basedir.resolve(p).toFile();
+                    SAXSource source = new SAXSource(new InputSource(new FileInputStream(sourceFile)));
+                    Path targetPath = p.getParent()==null ? targetDir : targetDir.resolve(p.getParent());
+                    String sourceFileName = sourceFile.getName();
+                    getLog().debug(LOG_PREFIX+" sourceFileName="+sourceFileName);
+                    String targetFileName = FilenameUtils.getBaseName(sourceFileName).concat(".sef");
+                    getLog().debug(LOG_PREFIX+" targetFileName="+targetFileName);
+                    File targetFile = targetPath.resolve(targetFileName).toFile();
+                    try {
+                        compileFile(source, targetFile);
+                    } catch (SaxonApiException | FileNotFoundException ex) {
+                        hasError = true;
+                        getLog().error(LOG_PREFIX+" While compiling "+p, ex);
+                    }
+                } catch(FileNotFoundException ex) {
+                    // should never happen, file has been previously found
+                        hasError = true;
+                        getLog().error(LOG_PREFIX+" While compiling "+p, ex);
                 }
             }
         }
