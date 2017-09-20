@@ -69,6 +69,9 @@ public class XslCompilerMojo extends AbstractCompiler {
     @Parameter
     protected File catalog;
     
+    @Parameter(defaultValue = "${project.basedir}")
+    private File projectBaseDir;
+
     public static final String ERROR_MESSAGE = "<filesets>\n\t<fileset>\n\t\t<dir>src/main/xsl...</dir>\n\t</fileset>\n</filesets>\n is required in xslCompiler-maven-plugin configuration";
     
     @Override
@@ -83,7 +86,7 @@ public class XslCompilerMojo extends AbstractCompiler {
         }
         for(FileSet fs: filesets) {
             Path basedir = new File(fs.getDir()).toPath();
-            for(Path p: fs.getFiles(log)) {
+            for(Path p: fs.getFiles(projectBaseDir, log)) {
                 try {
                     File sourceFile = basedir.resolve(p).toFile();
                     SAXSource source = new SAXSource(new InputSource(new FileInputStream(sourceFile)));
