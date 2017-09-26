@@ -26,6 +26,7 @@
  */
 package top.marchand.xml.maven.plugin.xsl;
 
+import java.io.File;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -126,13 +127,15 @@ public class FileSet {
     
     /**
      * Returns the files that match this FileSet
+     * @param projectBaseDir. Used to relocate {@link #dir } if <tt>dir</tt> does not exists
      * @param log The log to use while scanning. May be <tt>null</tt>
      * @return The files that match this FileSet
      */
-    public List<Path> getFiles(Log log) {
+    public List<Path> getFiles(File projectBaseDir, Log log) {
         if(foundFiles==null) {
-            DirectoryScanner scanner = new DirectoryScanner(this, log);
+            DirectoryScanner scanner = new DirectoryScanner(this, projectBaseDir, log);
             foundFiles = scanner.scan();
+            this.dir=scanner.getBaseDir().getAbsolutePath();
         }
         return foundFiles;
     }

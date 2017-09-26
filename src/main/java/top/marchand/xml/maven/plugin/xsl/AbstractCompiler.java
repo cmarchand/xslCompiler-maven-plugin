@@ -29,6 +29,7 @@ package top.marchand.xml.maven.plugin.xsl;
 import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
+import javax.xml.transform.URIResolver;
 import net.sf.saxon.Configuration;
 import net.sf.saxon.s9api.Axis;
 import net.sf.saxon.s9api.DocumentBuilder;
@@ -61,13 +62,13 @@ public abstract class AbstractCompiler extends AbstractMojo {
      * Compiles a <tt>sourceFile</tt> to a <tt>targetFile</tt>.
      * If the file is a <tt>&lt;package&gt;</tt>, {@link #compilePackage(net.sf.saxon.s9api.XdmNode, java.io.File) } is called,
      * else {@link #compileModule(net.sf.saxon.s9api.XdmNode, java.io.File) } is called.
-     * @param sourceFile The source file to compile
+     * @param source The source file to compile
      * @param targetFile The target file to generate
      * @throws SaxonApiException In case of failure
      * @throws FileNotFoundException In case of failure
      */
-    protected void compileFile(final File sourceFile, final File targetFile) throws SaxonApiException, FileNotFoundException {
-        XdmNode document = builder.build(sourceFile);
+    protected void compileFile(final javax.xml.transform.Source source, final File targetFile) throws SaxonApiException, FileNotFoundException {
+        XdmNode document = builder.build(source);
         XdmNode documentRoot = (XdmNode) document.axisIterator(Axis.CHILD).next();
         if (documentRoot.getNodeName().getLocalName().equals("package")) {
             compilePackage(documentRoot, targetFile);
@@ -110,6 +111,7 @@ public abstract class AbstractCompiler extends AbstractMojo {
         compiler = proc.newXsltCompiler();
         Resolver uriResolver = new Resolver();
         if(getCatalogFile()!=null) {
+            getLog().debug("Setting catalog to "+getCatalogFile().toURI().toString());
             uriResolver.getCatalog().addSource(new CatalogSource.UriCatalogSource(getCatalogFile().toURI().toString()));
         }
         compiler.setURIResolver(uriResolver);
@@ -128,4 +130,15 @@ public abstract class AbstractCompiler extends AbstractMojo {
      */
     protected XsltCompiler getXsltCompiler() { return compiler; }
     
+    /**
+     * Because we may need a URIResolver elsewhere
+     * @return  The URI resolver used?
+     */
+    protected URIResolver getUriResolver() { return compiler.getURIResolver(); }
+    
+    /**
+     * Because we may need a DocumentBuilder elsewhere !
+     * @return 
+     */
+    protected DocumentBuilder getBuilder() { return builder; }
 }

@@ -32,6 +32,7 @@ import java.nio.file.FileSystems;
 import java.nio.file.Path;
 import java.nio.file.PathMatcher;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import org.apache.maven.plugin.logging.Log;
 import top.marchand.xml.maven.plugin.xsl.FileSet;
@@ -42,7 +43,7 @@ import top.marchand.xml.maven.plugin.xsl.FileSet;
  * @author cmarchand
  */
 public class DirectoryScanner {
-    private final File baseDir;
+    private File baseDir;
     private final List<String> includes;
     private final List<String> excludes;
     private final Log log;
@@ -73,14 +74,19 @@ public class DirectoryScanner {
     /**
      * Constructs a DirectoryScanner for the specified FileSet
      * @param fileset The descriptoin of which files to get
+     * @param projectBaseDir. The project base dir, to relocate {@link #baseDir} if <tt>baseDir</tt> does not exists
      * @param log The maven logger to use
      */
-    public DirectoryScanner(final FileSet fileset, final Log log) {
+    public DirectoryScanner(final FileSet fileset, final File projectBaseDir, final Log log) {
         super();
         this.baseDir = new File(fileset.getDir());
+        if(!this.baseDir.exists() || !baseDir.isDirectory()) {
+            this.baseDir = new File(projectBaseDir, fileset.getDir());
+        }
         this.includes = fileset.getIncludes();
         this.excludes = fileset.getExcludes();
         this.log=log;
+        log.debug("DirectoryScanner<>(FileSet,Log) baseDir="+baseDir.getAbsolutePath());
     }
     /**
      * Returns default includes to use
@@ -116,6 +122,7 @@ public class DirectoryScanner {
         for(String include: includes) {
             includeMatchers.add(buildPathMatcher(fs, include));
             if(include.contains("**")) isToRecurse = true;
+            else if(include.matches(".*/.+/.*")) isToRecurse = true;
         }
         excludeMatchers = new ArrayList<>(excludes.size());
         for(String exclude: excludes) {
@@ -129,9 +136,11 @@ public class DirectoryScanner {
     }
     
     protected List<Path> scan(File dir) {
-        log.debug("scanning "+dir.getAbsolutePath());
+        log.debug("scanning "+dir.getAbsolutePath()+". it is "+(dir.isDirectory()?"":"not ")+"a directory");
         ArrayList<Path> ret = new ArrayList<>();
-        for(File child:dir.listFiles()) {
+        File[] childs=dir.listFiles();
+        log.debug("\tchilds="+Arrays.toString(childs));
+        for(File child:childs) {
             if(child.isDirectory()) {
                 if(isToRecurse) {
                     ret.addAll(scan(child));
@@ -141,21 +150,23 @@ public class DirectoryScanner {
                 boolean acceptable = false;
                 for(PathMatcher pm:includeMatchers) {
                     if(pm.matches(rel)) {
-                        if(log!=null && log.isDebugEnabled())
-                            log.debug("[INCLUDE] "+rel+" matches "+pm);
+//                        if(log!=null && log.isDebugEnabled())
+//                            log.debug("[INCLUDE] "+rel+" matches "+pm);
                         acceptable = true;
                         break;
-                    } else {
-                        if(log!=null && log.isDebugEnabled())
-                            log.debug("[INCLUDE] "+rel+" does not match "+pm);
+//                    } else {
+//                        if(log!=null && log.isDebugEnabled())
+//                            log.debug("[INCLUDE] "+rel+" does not match "+pm);
                     }
                 }
-                for(PathMatcher pm:excludeMatchers) {
-                    if(pm.matches(rel)) {
-                        if(log!=null && log.isDebugEnabled())
-                            log.debug("[EXCLUDE] "+rel+" matches "+pm);
-                        acceptable = false;
-                        break;
+                if(acceptable) {
+                    for(PathMatcher pm:excludeMatchers) {
+                        if(pm.matches(rel)) {
+//                            if(log!=null && log.isDebugEnabled())
+//                                log.debug("[EXCLUDE] "+rel+" matches "+pm);
+                            acceptable = false;
+                            break;
+                        }
                     }
                 }
                 if(acceptable) ret.add(rel);
@@ -164,4 +175,10 @@ public class DirectoryScanner {
         
         return ret;
     }
+    
+    /**
+     * Return the directory where scan happens in
+     * @return The base directory of scan
+     */
+    public File getBaseDir() { return baseDir; }
 }
