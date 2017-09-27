@@ -42,6 +42,7 @@ import org.apache.maven.plugins.annotations.Mojo;
 import org.apache.maven.plugins.annotations.Parameter;
 import org.apache.maven.plugins.annotations.ResolutionScope;
 import org.xml.sax.InputSource;
+import top.marchand.xml.maven.plugin.xsl.scandir.ScanListener;
 
 /**
  * The Mojo
@@ -71,6 +72,9 @@ public class XslCompilerMojo extends AbstractCompiler {
     
     @Parameter(defaultValue = "${project.basedir}")
     private File projectBaseDir;
+    
+    @Parameter()
+    private boolean logExcludedFiles;
 
     public static final String ERROR_MESSAGE = "<filesets>\n\t<fileset>\n\t\t<dir>src/main/xsl...</dir>\n\t</fileset>\n</filesets>\n is required in xslCompiler-maven-plugin configuration";
     
@@ -84,9 +88,22 @@ public class XslCompilerMojo extends AbstractCompiler {
             getLog().error(LOG_PREFIX+"\n"+ERROR_MESSAGE);
             throw new MojoExecutionException(ERROR_MESSAGE);
         }
+        ScanListener listener = null;
+        if(logExcludedFiles) {
+            listener = new ScanListener() {
+                @Override
+                public void scanning(File dir) { }
+                @Override
+                public void fileAccepted(Path rel) { }
+                @Override
+                public void fileRejected(Path rel) {
+                    getLog().warn(rel.toString()+" has been excluded. If it is a resource, this resource may nto be processed as a resource, and will be probably miss in final delivery.");
+                }
+            };
+        }
         for(FileSet fs: filesets) {
             Path basedir = new File(fs.getDir()).toPath();
-            for(Path p: fs.getFiles(projectBaseDir, log)) {
+            for(Path p: fs.getFiles(projectBaseDir, log, listener)) {
                 try {
                     File sourceFile = basedir.resolve(p).toFile();
                     SAXSource source = new SAXSource(new InputSource(new FileInputStream(sourceFile)));

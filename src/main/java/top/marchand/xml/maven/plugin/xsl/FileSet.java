@@ -33,6 +33,7 @@ import java.util.Arrays;
 import java.util.List;
 import org.apache.maven.plugin.logging.Log;
 import top.marchand.xml.maven.plugin.xsl.scandir.DirectoryScanner;
+import top.marchand.xml.maven.plugin.xsl.scandir.ScanListener;
 
 /**
  * A FileSet entry. A FileSet is directory based, and have severals include and excludes.
@@ -132,8 +133,19 @@ public class FileSet {
      * @return The files that match this FileSet
      */
     public List<Path> getFiles(File projectBaseDir, Log log) {
+        return getFiles(projectBaseDir, log, null);
+    }
+    /**
+     * Returns the files that match this FileSet
+     * @param projectBaseDir. Used to relocate {@link #dir } if <tt>dir</tt> does not exists
+     * @param log The log to use while scanning. May be <tt>null</tt>
+     * @param listener The scan listener to use. May be <tt>null</tt>
+     * @return The files that match this FileSet
+     */
+    public List<Path> getFiles(File projectBaseDir, Log log, ScanListener listener) {
         if(foundFiles==null) {
             DirectoryScanner scanner = new DirectoryScanner(this, projectBaseDir, log);
+            scanner.setScanListener(listener);
             foundFiles = scanner.scan();
             this.dir=scanner.getBaseDir().getAbsolutePath();
         }

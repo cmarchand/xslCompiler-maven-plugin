@@ -54,6 +54,8 @@ public class DirectoryScanner {
     private transient boolean isToRecurse;
     private transient Path basePath;
     
+    private ScanListener listener;
+    
     /**
      * Constructs a DirectoryScanner on <tt>baseDir</tt>, with default includes
      * and default excludes.
@@ -136,6 +138,9 @@ public class DirectoryScanner {
     }
     
     protected List<Path> scan(File dir) {
+        if(listener!=null) {
+            listener.scanning(dir);
+        }
         log.debug("scanning "+dir.getAbsolutePath()+". it is "+(dir.isDirectory()?"":"not ")+"a directory");
         ArrayList<Path> ret = new ArrayList<>();
         File[] childs=dir.listFiles();
@@ -169,7 +174,13 @@ public class DirectoryScanner {
                         }
                     }
                 }
-                if(acceptable) ret.add(rel);
+                if(acceptable) {
+                    ret.add(rel);
+                    if(listener!=null)
+                        listener.fileAccepted(rel);
+                } else {
+                    if(listener!=null) listener.fileRejected(rel);
+                }
             }
         }
         
@@ -181,4 +192,12 @@ public class DirectoryScanner {
      * @return The base directory of scan
      */
     public File getBaseDir() { return baseDir; }
+
+    /**
+     * Sets the {@link ScanListener} to use
+     * @param listener
+     */
+    public void setScanListener(ScanListener listener) {
+        this.listener = listener;
+    }
 }
