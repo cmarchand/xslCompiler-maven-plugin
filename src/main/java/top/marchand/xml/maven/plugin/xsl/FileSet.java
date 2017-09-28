@@ -169,7 +169,9 @@ public class FileSet {
     }
     public String getUriPath() {
         if(getUri()!=null) {
-            return uri.substring(uri.indexOf(":")+1);
+            String ret = uri.substring(uri.indexOf(":")+1);
+            if(ret.startsWith("/")) return ret.substring(1);
+            else return ret;
         } else {
             throw new IllegalStateException("getUriPath() can be call only if this FileSet is based on an URI");
         }
