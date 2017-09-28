@@ -49,6 +49,7 @@ public class FileSet {
     private List<Path> foundFiles;
     
     private String dir;
+    private String uri;
     
     /**
      * Constructs a new FileSet, with no base dir, with default includes and excludes
@@ -82,6 +83,14 @@ public class FileSet {
 
     public void setDir(String dir) {
         this.dir = dir;
+    }
+
+    public String getUri() {
+        return uri;
+    }
+
+    public void setUri(String uri) {
+        this.uri = uri;
     }
     
     protected final void resetIncludeExcludes() {
@@ -158,6 +167,12 @@ public class FileSet {
         sb.append("[dir=").append(dir).append(", includes=").append(includes).append(", excludes=").append(excludes).append("]");
         return sb.toString();
     }
-    
+    public String getUriPath() {
+        if(getUri()!=null) {
+            return uri.substring(uri.indexOf(":")+1);
+        } else {
+            throw new IllegalStateException("getUriPath() can be call only if this FileSet is based on an URI");
+        }
+    }
     
 }

@@ -29,8 +29,11 @@ package top.marchand.xml.maven.plugin.xsl;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileNotFoundException;
+import java.io.IOException;
+import java.net.URL;
 import java.nio.file.Path;
 import java.util.List;
+import javax.xml.transform.TransformerException;
 import javax.xml.transform.sax.SAXSource;
 import net.sf.saxon.s9api.SaxonApiException;
 import org.apache.commons.io.FilenameUtils;
@@ -102,27 +105,48 @@ public class XslCompilerMojo extends AbstractCompiler {
             };
         }
         for(FileSet fs: filesets) {
-            Path basedir = new File(fs.getDir()).toPath();
-            for(Path p: fs.getFiles(projectBaseDir, log, listener)) {
+            if(fs.getUri()!=null) {
                 try {
-                    File sourceFile = basedir.resolve(p).toFile();
-                    SAXSource source = new SAXSource(new InputSource(new FileInputStream(sourceFile)));
-                    Path targetPath = p.getParent()==null ? targetDir : targetDir.resolve(p.getParent());
-                    String sourceFileName = sourceFile.getName();
+                    int pos = fs.getUri().indexOf(":");
+                    String sPath = fs.getUriPath();
+                    javax.xml.transform.Source source = compiler.getURIResolver().resolve(fs.getUri(), null);
+                    Path targetPath = targetDir.resolve(sPath);
+                    String sourceFileName = sPath.substring(sPath.lastIndexOf("/")+1);
+                    if(sourceFileName.contains("?")) {
+                        sourceFileName = sourceFileName.substring(0, sourceFileName.indexOf("?")-1);
+                    }
                     getLog().debug(LOG_PREFIX+" sourceFileName="+sourceFileName);
                     String targetFileName = FilenameUtils.getBaseName(sourceFileName).concat(".sef");
                     getLog().debug(LOG_PREFIX+" targetFileName="+targetFileName);
                     File targetFile = targetPath.resolve(targetFileName).toFile();
+                    compileFile(source, targetFile);
+                } catch(IOException | SaxonApiException | TransformerException ex) {
+                    hasError = true;
+                    getLog().error(LOG_PREFIX+" while compiling "+fs.getUri(), ex);
+                }
+            } else {
+                Path basedir = new File(fs.getDir()).toPath();
+                for(Path p: fs.getFiles(projectBaseDir, log, listener)) {
                     try {
-                        compileFile(source, targetFile);
-                    } catch (SaxonApiException | FileNotFoundException ex) {
-                        hasError = true;
-                        getLog().error(LOG_PREFIX+" While compiling "+p, ex);
+                        File sourceFile = basedir.resolve(p).toFile();
+                        SAXSource source = new SAXSource(new InputSource(new FileInputStream(sourceFile)));
+                        Path targetPath = p.getParent()==null ? targetDir : targetDir.resolve(p.getParent());
+                        String sourceFileName = sourceFile.getName();
+                        getLog().debug(LOG_PREFIX+" sourceFileName="+sourceFileName);
+                        String targetFileName = FilenameUtils.getBaseName(sourceFileName).concat(".sef");
+                        getLog().debug(LOG_PREFIX+" targetFileName="+targetFileName);
+                        File targetFile = targetPath.resolve(targetFileName).toFile();
+                        try {
+                            compileFile(source, targetFile);
+                        } catch (SaxonApiException | FileNotFoundException ex) {
+                            hasError = true;
+                            getLog().error(LOG_PREFIX+" While compiling "+p, ex);
+                        }
+                    } catch(FileNotFoundException ex) {
+                        // should never happen, file has been previously found
+                            hasError = true;
+                            getLog().error(LOG_PREFIX+" While compiling "+p, ex);
                     }
-                } catch(FileNotFoundException ex) {
-                    // should never happen, file has been previously found
-                        hasError = true;
-                        getLog().error(LOG_PREFIX+" While compiling "+p, ex);
                 }
             }
         }
