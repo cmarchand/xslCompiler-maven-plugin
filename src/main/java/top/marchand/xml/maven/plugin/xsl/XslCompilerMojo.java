@@ -30,12 +30,12 @@ import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileNotFoundException;
 import java.io.IOException;
-import java.net.URL;
 import java.nio.file.Path;
 import java.util.List;
 import javax.xml.transform.TransformerException;
 import javax.xml.transform.sax.SAXSource;
 import net.sf.saxon.s9api.SaxonApiException;
+import net.sf.saxon.trans.XPathException;
 import org.apache.commons.io.FilenameUtils;
 import org.apache.maven.plugin.MojoExecutionException;
 import org.apache.maven.plugin.MojoFailureException;
@@ -45,6 +45,7 @@ import org.apache.maven.plugins.annotations.Mojo;
 import org.apache.maven.plugins.annotations.Parameter;
 import org.apache.maven.plugins.annotations.ResolutionScope;
 import org.xml.sax.InputSource;
+import top.marchand.maven.saxon.utils.SaxonOptions;
 import top.marchand.xml.maven.plugin.xsl.scandir.ScanListener;
 
 /**
@@ -78,13 +79,20 @@ public class XslCompilerMojo extends AbstractCompiler {
     
     @Parameter()
     private boolean logExcludedFiles;
+    
+    @Parameter(name="saxonOptions")
+    SaxonOptions saxonOptions;
 
     public static final String ERROR_MESSAGE = "<filesets>\n\t<fileset>\n\t\t<dir>src/main/xsl...</dir>\n\t</fileset>\n</filesets>\n is required in xslCompiler-maven-plugin configuration";
     
     @Override
     public void execute() throws MojoExecutionException, MojoFailureException {
         Log log = getLog();
-        initSaxon();
+        try {
+            initSaxon();
+        } catch(XPathException ex) {
+            getLog().error("while configuring Saxon:",ex);
+        }
         Path targetDir = classesDirectory.toPath();
         boolean hasError = false;
         if(filesets==null) {
@@ -194,6 +202,11 @@ public class XslCompilerMojo extends AbstractCompiler {
     @Override
     public File getCatalogFile() {
         return catalog;
+    }
+
+    @Override
+    public SaxonOptions getSaxonOptions() {
+        return saxonOptions;
     }
 
 }

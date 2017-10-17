@@ -39,9 +39,12 @@ import net.sf.saxon.s9api.XdmNode;
 import net.sf.saxon.s9api.XsltCompiler;
 import net.sf.saxon.s9api.XsltExecutable;
 import net.sf.saxon.s9api.XsltPackage;
+import net.sf.saxon.trans.XPathException;
 import org.apache.maven.plugin.AbstractMojo;
 import org.xmlresolver.CatalogSource;
 import org.xmlresolver.Resolver;
+import top.marchand.maven.saxon.utils.SaxonOptions;
+import top.marchand.maven.saxon.utils.SaxonUtils;
 
 /**
  * Ancestor class with all required code to compile a XSL
@@ -104,11 +107,16 @@ public abstract class AbstractCompiler extends AbstractMojo {
 
     /**
      * Initialize Saxon configuration
+     * @throws net.sf.saxon.trans.XPathException
      */
-    protected void initSaxon() {
+    protected void initSaxon() throws XPathException {
         Configuration config = Configuration.newConfiguration();
         Processor proc = new Processor(config);
+        SaxonUtils.prepareSaxonConfiguration(proc,getSaxonOptions());
         compiler = proc.newXsltCompiler();
+        if(getSaxonOptions()!=null ) {
+            compiler.setRelocatable("on".equals(getSaxonOptions().getRelocate()));
+        }
         Resolver uriResolver = new Resolver();
         if(getCatalogFile()!=null) {
             getLog().debug("Setting catalog to "+getCatalogFile().toURI().toString());
@@ -141,4 +149,10 @@ public abstract class AbstractCompiler extends AbstractMojo {
      * @return 
      */
     protected DocumentBuilder getBuilder() { return builder; }
+
+    /**
+     * Returns the SaxonOptions associated to this plugin
+     * @return 
+     */
+    public abstract SaxonOptions getSaxonOptions();
 }
