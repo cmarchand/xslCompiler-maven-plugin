@@ -77,10 +77,10 @@ public class XslCompilerMojo extends AbstractCompiler {
     @Parameter(defaultValue = "${project.basedir}")
     private File projectBaseDir;
     
-    @Parameter()
+    @Parameter
     private boolean logExcludedFiles;
     
-    @Parameter(name="saxonOptions")
+    @Parameter
     SaxonOptions saxonOptions;
 
     public static final String ERROR_MESSAGE = "<filesets>\n\t<fileset>\n\t\t<dir>src/main/xsl...</dir>\n\t</fileset>\n</filesets>\n is required in xslCompiler-maven-plugin configuration";
