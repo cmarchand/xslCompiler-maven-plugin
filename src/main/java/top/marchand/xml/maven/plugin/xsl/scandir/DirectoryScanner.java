@@ -195,7 +195,7 @@ public class DirectoryScanner {
 
     /**
      * Sets the {@link ScanListener} to use
-     * @param listener
+     * @param listener The listener to be notified
      */
     public void setScanListener(ScanListener listener) {
         this.listener = listener;

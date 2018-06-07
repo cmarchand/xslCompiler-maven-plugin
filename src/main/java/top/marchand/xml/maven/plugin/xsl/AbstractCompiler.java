@@ -41,10 +41,12 @@ import net.sf.saxon.s9api.XsltExecutable;
 import net.sf.saxon.s9api.XsltPackage;
 import net.sf.saxon.trans.XPathException;
 import org.apache.maven.plugin.AbstractMojo;
-import org.xmlresolver.CatalogSource;
+import org.xml.sax.ext.EntityResolver2;
+import org.xmlresolver.Catalog;
 import org.xmlresolver.Resolver;
 import top.marchand.maven.saxon.utils.SaxonOptions;
 import top.marchand.maven.saxon.utils.SaxonUtils;
+import top.marchand.xml.maven.plugin.xsl.parsers.XcSAXParserFactory;
 
 /**
  * Ancestor class with all required code to compile a XSL
@@ -107,22 +109,26 @@ public abstract class AbstractCompiler extends AbstractMojo {
 
     /**
      * Initialize Saxon configuration
-     * @throws net.sf.saxon.trans.XPathException
+     * @throws net.sf.saxon.trans.XPathException In case of problem
      */
     protected void initSaxon() throws XPathException {
         Configuration config = Configuration.newConfiguration();
+        config.setSourceParserClass(XcSAXParserFactory.class.getName());
         Processor proc = new Processor(config);
         SaxonUtils.prepareSaxonConfiguration(proc,getSaxonOptions());
-        compiler = proc.newXsltCompiler();
         if(getSaxonOptions()!=null ) {
             compiler.setRelocatable("on".equals(getSaxonOptions().getRelocate()));
         }
-        Resolver uriResolver = new Resolver();
+        Resolver uriResolver;
         if(getCatalogFile()!=null) {
             getLog().debug("Setting catalog to "+getCatalogFile().toURI().toString());
-            uriResolver.getCatalog().addSource(new CatalogSource.UriCatalogSource(getCatalogFile().toURI().toString()));
+            // uriResolver.getCatalog().addSource(new CatalogSource.UriCatalogSource(getCatalogFile().toURI().toString()));
+            uriResolver = new Resolver(new Catalog(getCatalogFile().toURI().toString()));
+        } else {
+            uriResolver = new Resolver();
         }
-        compiler.setURIResolver(uriResolver);
+        config.setURIResolver(uriResolver);
+        compiler = proc.newXsltCompiler();
         builder = proc.newDocumentBuilder();
     }
     
@@ -133,26 +139,32 @@ public abstract class AbstractCompiler extends AbstractMojo {
     protected Processor getProcessor() { return compiler.getProcessor(); }
     
     /**
-     * Because we may need a compiler elswhere
+     * Because we may need a compiler elsewhere
      * @return The XSL compiler used
      */
     protected XsltCompiler getXsltCompiler() { return compiler; }
     
     /**
      * Because we may need a URIResolver elsewhere
-     * @return  The URI resolver used?
+     * @return  The URI resolver used
      */
     protected URIResolver getUriResolver() { return compiler.getURIResolver(); }
     
     /**
+     * Returns the EntityResolver to use
+     * @return The EntityResolver
+     */
+    protected EntityResolver2 getEntityResolver() { return (EntityResolver2)getUriResolver(); }
+    
+    /**
      * Because we may need a DocumentBuilder elsewhere !
-     * @return 
+     * @return The document builder
      */
     protected DocumentBuilder getBuilder() { return builder; }
 
     /**
      * Returns the SaxonOptions associated to this plugin
-     * @return 
+     * @return Saxon optiones
      */
     public abstract SaxonOptions getSaxonOptions();
 }
