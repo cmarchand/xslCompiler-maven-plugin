@@ -118,6 +118,7 @@ public class XslCompilerMojo extends AbstractCompiler {
                     int pos = fs.getUri().indexOf(":");
                     String sPath = fs.getUriPath();
                     javax.xml.transform.Source source = compiler.getURIResolver().resolve(fs.getUri(), null);
+			getLog().debug("source systemId="+source.getSystemId());
                     Path targetPath = targetDir.resolve(sPath);
                     String sourceFileName = sPath.substring(sPath.lastIndexOf("/")+1);
                     if(sourceFileName.contains("?")) {
@@ -138,6 +139,8 @@ public class XslCompilerMojo extends AbstractCompiler {
                     try {
                         File sourceFile = basedir.resolve(p).toFile();
                         SAXSource source = new SAXSource(new InputSource(new FileInputStream(sourceFile)));
+			source.setSystemId(sourceFile.toURI().toString());
+			getLog().debug("source systemId 2: "+source.getSystemId());
                         Path targetPath = p.getParent()==null ? targetDir : targetDir.resolve(p.getParent());
                         String sourceFileName = sourceFile.getName();
                         getLog().debug(LOG_PREFIX+" sourceFileName="+sourceFileName);
