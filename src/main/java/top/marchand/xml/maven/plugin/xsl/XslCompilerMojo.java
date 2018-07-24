@@ -40,10 +40,13 @@ import org.apache.commons.io.FilenameUtils;
 import org.apache.maven.plugin.MojoExecutionException;
 import org.apache.maven.plugin.MojoFailureException;
 import org.apache.maven.plugin.logging.Log;
+import org.apache.maven.plugins.annotations.Component;
 import org.apache.maven.plugins.annotations.LifecyclePhase;
 import org.apache.maven.plugins.annotations.Mojo;
 import org.apache.maven.plugins.annotations.Parameter;
 import org.apache.maven.plugins.annotations.ResolutionScope;
+import org.apache.maven.project.MavenProject;
+import org.apache.maven.shared.dependency.graph.DependencyGraphBuilder;
 import org.xml.sax.InputSource;
 import top.marchand.maven.saxon.utils.SaxonOptions;
 import top.marchand.xml.maven.plugin.xsl.scandir.ScanListener;
@@ -55,7 +58,14 @@ import top.marchand.xml.maven.plugin.xsl.scandir.ScanListener;
  */
 @Mojo(name = "xsl-compiler", defaultPhase = LifecyclePhase.COMPILE, requiresDependencyResolution = ResolutionScope.COMPILE_PLUS_RUNTIME)
 public class XslCompilerMojo extends AbstractCompiler {
-
+    @Parameter( defaultValue = "${project}", readonly = true, required = true )
+    private MavenProject project;
+    @Override
+    public MavenProject getProject() { return project; }
+    @Component( hint = "default" )
+    private DependencyGraphBuilder dependencyGraphBuilder;
+    @Override
+    public DependencyGraphBuilder getGraphBuilder() { return dependencyGraphBuilder; }
     /**
      * The directory containing generated classes of the project being tested. 
      * This will be included after the test classes in the test classpath.
@@ -71,18 +81,27 @@ public class XslCompilerMojo extends AbstractCompiler {
     @Parameter
     private List<FileSet> filesets;
     
+    /**
+     * The catalog file to use when compiling XSL.
+     */
     @Parameter
     protected File catalog;
     
     @Parameter(defaultValue = "${project.basedir}")
     private File projectBaseDir;
     
+    /**
+     * If set to true, excluded files are logged.
+     */
     @Parameter
     private boolean logExcludedFiles;
     
+    /**
+     * Saxon options. See {@linkplain  https://github.com/cmarchand/saxonOptions-mvn-plug-utils/wiki}
+     */
     @Parameter
     SaxonOptions saxonOptions;
-
+    
     public static final String ERROR_MESSAGE = "<filesets>\n\t<fileset>\n\t\t<dir>src/main/xsl...</dir>\n\t</fileset>\n</filesets>\n is required in xslCompiler-maven-plugin configuration";
     
     @Override

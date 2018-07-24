@@ -7,7 +7,7 @@
 
     <groupId>top.marchand.xml.maven</groupId>
     <artifactId>xslcompiler-maven-plugin</artifactId>
-    <version>1.0.1</version>
+    <version>1.0.2-SNAPSHOT</version>
     <packaging>maven-plugin</packaging>
 
 
@@ -59,10 +59,16 @@
             <version>${maven.plugin-plugin.version}</version>
             <scope>provided</scope>
         </dependency>
-        <dependency>
+        <!--dependency>
             <groupId>extern.net.sf.saxon</groupId>
             <artifactId>saxonee</artifactId>
             <version>9.8.0.5</version>
+            <scope>provided</scope>
+        </dependency-->
+        <dependency>
+            <groupId>net.sf.saxon</groupId>
+            <artifactId>Saxon-HE</artifactId>
+            <version>9.8.0-8</version>
             <scope>provided</scope>
         </dependency>
         <dependency>
@@ -84,6 +90,31 @@
             <groupId>org.opengis.cite.xerces</groupId>
             <artifactId>xercesImpl-xsd11</artifactId>
             <version>2.12-beta-r1667115</version>
+        </dependency>
+        <dependency>
+            <groupId>org.apache.maven.shared</groupId>
+            <artifactId>maven-dependency-analyzer</artifactId>
+            <version>1.6</version>
+        </dependency>
+        <dependency>
+            <groupId>org.apache.maven.shared</groupId>
+            <artifactId>maven-dependency-tree</artifactId>
+            <version>2.2</version>
+        </dependency>
+        <dependency>
+            <groupId>org.apache.maven</groupId>
+            <artifactId>maven-project</artifactId>
+            <version>2.2.1</version>
+        </dependency>
+        <dependency>
+            <groupId>org.apache.maven</groupId>
+            <artifactId>maven-artifact</artifactId>
+            <version>2.2.1</version>
+        </dependency>
+        <dependency>
+            <groupId>com.google.guava</groupId>
+            <artifactId>guava</artifactId>
+            <version>19.0</version>
         </dependency>
     </dependencies>
 
@@ -232,17 +263,6 @@
             <url>https://oss.sonatype.org/service/local/staging/deploy/maven2/</url>
         </repository>
     </distributionManagement>
-    
-    <!--pluginRepositories>
-        <pluginRepository>
-            <id>sonatype-releases</id>
-            <url>http://oss.sonatype.org/content/repositories/releases</url>
-        </pluginRepository>
-        <pluginRepository>
-            <id>clojars.org</id>
-            <url>http://clojars.org/repo</url>
-        </pluginRepository>
-    </pluginRepositories-->
     
     <profiles>
         <profile>
