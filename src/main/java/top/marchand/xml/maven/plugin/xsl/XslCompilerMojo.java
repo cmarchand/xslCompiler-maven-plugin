@@ -134,7 +134,6 @@ public class XslCompilerMojo extends AbstractCompiler {
         for(FileSet fs: filesets) {
             if(fs.getUri()!=null) {
                 try {
-                    int pos = fs.getUri().indexOf(":");
                     String sPath = fs.getUriPath();
                     javax.xml.transform.Source source = compiler.getURIResolver().resolve(fs.getUri(), null);
 			getLog().debug("source systemId="+source.getSystemId());
@@ -146,7 +145,7 @@ public class XslCompilerMojo extends AbstractCompiler {
                     getLog().debug(LOG_PREFIX+" sourceFileName="+sourceFileName);
                     String targetFileName = FilenameUtils.getBaseName(sourceFileName).concat(".sef");
                     getLog().debug(LOG_PREFIX+" targetFileName="+targetFileName);
-                    File targetFile = targetPath.resolve(targetFileName).toFile();
+                    File targetFile = targetPath.getParent().resolve(targetFileName).toFile();
                     compileFile(source, targetFile);
                 } catch(IOException | SaxonApiException | TransformerException ex) {
                     hasError = true;
