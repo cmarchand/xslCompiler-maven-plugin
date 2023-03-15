@@ -28,11 +28,13 @@ package top.marchand.xml.maven.plugin.xsl.scandir;
 
 import java.io.File;
 import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.List;
 import org.apache.maven.monitor.logging.DefaultLog;
 import org.apache.maven.plugin.logging.Log;
 import org.codehaus.plexus.logging.console.ConsoleLogger;
 import org.junit.Test;
+
 import static org.junit.Assert.*;
 import org.junit.BeforeClass;
 import top.marchand.xml.maven.plugin.xsl.FileSet;
@@ -42,8 +44,8 @@ import top.marchand.xml.maven.plugin.xsl.FileSet;
  * @author cmarchand
  */
 public class DirectoryScannerTest {
-    private static Log log;
-    
+	private static Log log;
+
     @BeforeClass
     public static void beforeClass() {
         log = new DefaultLog(new ConsoleLogger(ConsoleLogger.LEVEL_DEBUG, "TEST")) {
@@ -62,38 +64,38 @@ public class DirectoryScannerTest {
         List<Path> ret = scanner.scan();
         assertEquals("6 files were expected with defaults", 6, ret.size());
     }
-    
-    @Test
-    public void test2chars() {
-        FileSet fileset = new FileSet("src/test/resources/DirectoryScanner");
-        fileset.getIncludes().clear();
-        fileset.getIncludes().add("**/??.xsl");
-        assertEquals("fileset.getIncludes() have the wrong number of items", 1, fileset.getIncludes().size());
-        DirectoryScanner scanner = new DirectoryScanner(fileset, new File(".").getAbsoluteFile(), log);
-        List<Path> ret = scanner.scan();
-        assertEquals("3 files were expected with 2 chars in name", 3, ret.size());
-    }
-    
-    @Test
-    public void testDirFilter() {
-        FileSet fileset = new FileSet("src/test/resources/DirectoryScanner");
-        fileset.getIncludes().clear();
-        fileset.getIncludes().add("**/xml/**/*.xsl");
-        fileset.getIncludes().add("**/xml/*.xsl");
-        assertEquals("fileset.getIncludes() have the wrong number of items", 2, fileset.getIncludes().size());
-        DirectoryScanner scanner = new DirectoryScanner(fileset, new File(".").getAbsoluteFile(), log);
-        List<Path> ret = scanner.scan();
-        assertEquals("4 files were expected under xml/ dir", 4, ret.size());
-    }
-    
-    @Test
-    public void testFullPath() {
-        FileSet fileset = new FileSet("src/test/resources/DirectoryScanner");
-        fileset.getIncludes().clear();
-        fileset.getIncludes().add("pipes/form/prepare.xml");
-        DirectoryScanner scanner = new DirectoryScanner(fileset, new File(".").getAbsoluteFile(), log);
-        List<Path> ret = scanner.scan();
-        assertEquals("Only one file should be found", 1, ret.size());
-        assertEquals("pipes/form/prepare.xml", ret.get(0).toString());
-    }
+
+	@Test
+	public void test2chars() {
+		FileSet fileset = new FileSet("src/test/resources/DirectoryScanner");
+		fileset.getIncludes().clear();
+		fileset.getIncludes().add("**/??.xsl");
+		assertEquals("fileset.getIncludes() have the wrong number of items", 1, fileset.getIncludes().size());
+		DirectoryScanner scanner = new DirectoryScanner(fileset, new File(".").getAbsoluteFile(), log);
+		List<Path> ret = scanner.scan();
+		assertEquals("3 files were expected with 2 chars in name", 3, ret.size());
+	}
+
+	@Test
+	public void testDirFilter() {
+		FileSet fileset = new FileSet("src/test/resources/DirectoryScanner");
+		fileset.getIncludes().clear();
+		fileset.getIncludes().add("**/xml/**/*.xsl");
+		fileset.getIncludes().add("**/xml/*.xsl");
+		assertEquals("fileset.getIncludes() have the wrong number of items", 2, fileset.getIncludes().size());
+		DirectoryScanner scanner = new DirectoryScanner(fileset, new File(".").getAbsoluteFile(), log);
+		List<Path> ret = scanner.scan();
+		assertEquals("4 files were expected under xml/ dir", 4, ret.size());
+	}
+
+	@Test
+	public void testFullPath() {
+		FileSet fileset = new FileSet("src/test/resources/DirectoryScanner");
+		fileset.getIncludes().clear();
+		fileset.getIncludes().add("pipes/form/prepare.xml");
+		DirectoryScanner scanner = new DirectoryScanner(fileset, new File(".").getAbsoluteFile(), log);
+		List<Path> ret = scanner.scan();
+		assertEquals("Only one file should be found", 1, ret.size());
+		assertEquals(Paths.get("pipes", "form", "prepare.xml").toString(), ret.get(0).toString());
+	}
 }

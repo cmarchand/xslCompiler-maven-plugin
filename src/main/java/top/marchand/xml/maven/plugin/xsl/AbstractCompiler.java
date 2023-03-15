@@ -39,6 +39,7 @@ import java.net.URLClassLoader;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Enumeration;
+import java.util.Iterator;
 import java.util.List;
 import javax.xml.transform.URIResolver;
 import javax.xml.transform.stream.StreamSource;
@@ -51,6 +52,7 @@ import net.sf.saxon.s9api.SaxonApiException;
 import net.sf.saxon.s9api.XPathCompiler;
 import net.sf.saxon.s9api.XPathExecutable;
 import net.sf.saxon.s9api.XPathSelector;
+import net.sf.saxon.s9api.XdmItem;
 import net.sf.saxon.s9api.XdmNode;
 import net.sf.saxon.s9api.XdmSequenceIterator;
 import net.sf.saxon.s9api.XsltCompiler;
@@ -195,7 +197,7 @@ public abstract class AbstractCompiler extends AbstractMojo {
                 XdmNode document = builder.build(new StreamSource(serviceUrl.openStream()));
                 XPathSelector selector = xpExec.load();
                 selector.setContextItem(document);
-                XdmSequenceIterator it = selector.evaluate().iterator();
+                Iterator<XdmItem> it = selector.evaluate().iterator();
                 while(it.hasNext()) {
                     String className = it.next().getStringValue();
                     try {
