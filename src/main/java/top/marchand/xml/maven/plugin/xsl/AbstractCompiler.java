@@ -31,6 +31,7 @@ import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.io.IOException;
+import java.lang.reflect.Constructor;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.net.MalformedURLException;
@@ -65,7 +66,9 @@ import org.apache.maven.artifact.resolver.filter.ArtifactFilter;
 import org.apache.maven.artifact.versioning.OverConstrainedVersionException;
 import org.apache.maven.plugin.AbstractMojo;
 import org.apache.maven.plugins.annotations.Parameter;
+import org.apache.maven.project.DefaultProjectBuildingRequest;
 import org.apache.maven.project.MavenProject;
+import org.apache.maven.project.ProjectBuildingRequest;
 import org.apache.maven.shared.dependency.graph.DependencyGraphBuilder;
 import org.apache.maven.shared.dependency.graph.DependencyGraphBuilderException;
 import org.apache.maven.shared.dependency.graph.DependencyNode;
@@ -98,8 +101,8 @@ public abstract class AbstractCompiler extends AbstractMojo {
     public abstract File getCatalogFile();
 
     /**
-     * Compiles a <tt>sourceFile</tt> to a <tt>targetFile</tt>.
-     * If the file is a <tt>&lt;package&gt;</tt>, {@link #compilePackage(net.sf.saxon.s9api.XdmNode, java.io.File) } is called,
+     * Compiles a {@code source} to a {@code targetFile}.
+     * If the file is a {@code&lt;package&gt;}, {@link #compilePackage(net.sf.saxon.s9api.XdmNode, java.io.File) } is called,
      * else {@link #compileModule(net.sf.saxon.s9api.XdmNode, java.io.File) } is called.
      * @param source The source file to compile
      * @param targetFile The target file to generate
@@ -156,8 +159,7 @@ public abstract class AbstractCompiler extends AbstractMojo {
         }
         Resolver uriResolver;
         if(getCatalogFile()!=null) {
-            getLog().debug(LOG_PREFIX+"Setting catalog to "+getCatalogFile().toURI().toString());
-            // uriResolver.getCatalog().addSource(new CatalogSource.UriCatalogSource(getCatalogFile().toURI().toString()));
+            getLog().debug(LOG_PREFIX+"Setting catalog to "+getCatalogFile().toURI());
             uriResolver = new Resolver(new Catalog(getCatalogFile().toURI().toString()));
         } else {
             uriResolver = new Resolver();
@@ -170,12 +172,7 @@ public abstract class AbstractCompiler extends AbstractMojo {
             XPathCompiler xpCompiler = proc.newXPathCompiler();
             XPathExecutable xpExec = xpCompiler.compile("/gaulois-services/saxon/extensions/function");
             final List<String> classpath = getProject().getCompileClasspathElements();
-            DependencyNode rootNode = getGraphBuilder().buildDependencyGraph(getProject(), new ArtifactFilter() {
-                @Override
-                public boolean include(Artifact artfct) {
-                    return true;
-                }
-            });
+            DependencyNode rootNode = getGraphBuilder().buildDependencyGraph(getProjectBuildingRequest(), artifact -> true);
             rootNode.accept(new DependencyNodeVisitor() {
                 @Override
                 public boolean visit(DependencyNode dn) {
@@ -197,22 +194,24 @@ public abstract class AbstractCompiler extends AbstractMojo {
                 XdmNode document = builder.build(new StreamSource(serviceUrl.openStream()));
                 XPathSelector selector = xpExec.load();
                 selector.setContextItem(document);
-                Iterator<XdmItem> it = selector.evaluate().iterator();
-                while(it.hasNext()) {
-                    String className = it.next().getStringValue();
-                    try {
-                        Class clazz = saxonClassLoader.loadClass(className);
-                        if(extendsClass(clazz, ExtensionFunctionDefinition.class)) {
-                            Class<ExtensionFunctionDefinition> cle = (Class<ExtensionFunctionDefinition>)clazz;
-                            config.registerExtensionFunction(cle.newInstance());
-                            getLog().debug(LOG_PREFIX+className+"registered as Saxon extension function");
-                        } else {
-                            getLog().warn(LOG_PREFIX+className+" does not extends "+ExtensionFunctionDefinition.class.getName());
-                        }
-                    } catch(ClassNotFoundException | InstantiationException | IllegalAccessException ex) {
-                        getLog().warn(LOG_PREFIX+"unable to load extension function "+className);
-                    }
+              for (XdmItem xdmItem : selector.evaluate()) {
+                String className = xdmItem.getStringValue();
+                try {
+                  Class clazz = saxonClassLoader.loadClass(className);
+                  if (extendsClass(clazz, ExtensionFunctionDefinition.class)) {
+                    @SuppressWarnings("unchecked")
+                    Class<ExtensionFunctionDefinition> cle = (Class<ExtensionFunctionDefinition>) clazz;
+                    Constructor<ExtensionFunctionDefinition> constructor = cle.getConstructor();
+                    config.registerExtensionFunction(constructor.newInstance());
+                    getLog().debug(LOG_PREFIX + className + "registered as Saxon extension function");
+                  } else {
+                    getLog().warn(LOG_PREFIX + className + " does not extends " + ExtensionFunctionDefinition.class.getName());
+                  }
+                } catch (ClassNotFoundException | InstantiationException | IllegalAccessException |
+                         NoSuchMethodException | InvocationTargetException ex) {
+                  getLog().warn(LOG_PREFIX + "unable to load extension function " + className);
                 }
+              }
             }
         } catch(IOException | SaxonApiException | DependencyResolutionRequiredException | DependencyGraphBuilderException ex) {
             getLog().error(LOG_PREFIX+"while looking for resources in /META-INF/services/top.marchand.xml.gaulois/", ex);
@@ -222,12 +221,16 @@ public abstract class AbstractCompiler extends AbstractMojo {
         // https://saxonica.plan.io/issues/3835
         compiler.setJustInTimeCompilation(false);
     }
-    
-    private boolean processDependency(DependencyNode dn, List<String> classpath, URLClassLoader saxonClassLoader) throws OverConstrainedVersionException {
+
+  private ProjectBuildingRequest getProjectBuildingRequest() {
+    DefaultProjectBuildingRequest buildingRequest = new DefaultProjectBuildingRequest();
+    buildingRequest.setProject(getProject());
+    return buildingRequest;
+  }
+
+  private boolean processDependency(DependencyNode dn, List<String> classpath, URLClassLoader saxonClassLoader) throws OverConstrainedVersionException {
         String artifactPath = constructArtifactPath(dn.getArtifact());
-//        getLog().debug(LOG_PREFIX+"artifactPath="+artifactPath);
         String jarFileName = getJarFileName(artifactPath, classpath);
-//        getLog().debug(LOG_PREFIX+"jarFileName="+jarFileName);
         if(jarFileName!=null && jarFileName.endsWith(".jar")) {
             // only jar files may contain extension function libraries
             try {
@@ -247,13 +250,12 @@ public abstract class AbstractCompiler extends AbstractMojo {
                         }
                     }
                 }
-                URLClassLoader ucl = new URLClassLoader(urls);
-                Enumeration<URL> enumer = ucl.findResources("META-INF/services/top.marchand.xml.gaulois.xml");
-                if(enumer.hasMoreElements()) {
+                try(URLClassLoader ucl = new URLClassLoader(urls)) {
+                  Enumeration<URL> enumer = ucl.findResources("META-INF/services/top.marchand.xml.gaulois.xml");
+                  if (enumer.hasMoreElements()) {
                     addJarToClassLoader(jarUrl, saxonClassLoader);
                     return true;
-//                } else {
-//                    getLog().debug(LOG_PREFIX+"no service found in "+jarUrl.toExternalForm());
+                  }
                 }
                 return true;
             } catch(IOException ex) {
@@ -274,15 +276,12 @@ public abstract class AbstractCompiler extends AbstractMojo {
         }
         return jarFileName;
     }
-    private String constructArtifactPath(Artifact art) throws OverConstrainedVersionException {
-        String groups[] = art.getGroupId().split("\\.");
-//        getLog().debug(LOG_PREFIX+"groups="+Arrays.toString(groups));
-        String artifacts[] = art.getArtifactId().split("\\.");
-//        getLog().debug(LOG_PREFIX+"artifacts="+Arrays.toString(artifacts));
+    private String constructArtifactPath(Artifact art) {
+        String[] groups = art.getGroupId().split("\\.");
+        String[] artifacts = art.getArtifactId().split("\\.");
         String[] elements = new String[groups.length + artifacts.length + 1];
         System.arraycopy(groups, 0, elements, 0, groups.length);
         System.arraycopy(artifacts, 0, elements, groups.length, artifacts.length);
-//        getLog().debug(LOG_PREFIX+"artifact.baseVersion="+art.getBaseVersion());
         elements[elements.length-1] = art.getBaseVersion();
         return Joiner.on(File.separator).skipNulls().join(elements);
     }

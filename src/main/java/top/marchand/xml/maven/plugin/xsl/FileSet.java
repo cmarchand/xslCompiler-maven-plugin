@@ -137,8 +137,8 @@ public class FileSet {
     
     /**
      * Returns the files that match this FileSet
-     * @param projectBaseDir. Used to relocate {@link #dir } if <tt>dir</tt> does not exists
-     * @param log The log to use while scanning. May be <tt>null</tt>
+     * @param projectBaseDir. Used to relocate {@link #dir } if {@code dir} does not exists
+     * @param log The log to use while scanning. May be {@code null}
      * @return The files that match this FileSet
      */
     public List<Path> getFiles(File projectBaseDir, Log log) {
@@ -146,9 +146,9 @@ public class FileSet {
     }
     /**
      * Returns the files that match this FileSet
-     * @param projectBaseDir. Used to relocate {@link #dir } if <tt>dir</tt> does not exists
-     * @param log The log to use while scanning. May be <tt>null</tt>
-     * @param listener The scan listener to use. May be <tt>null</tt>
+     * @param projectBaseDir. Used to relocate {@link #dir } if {@code dir} does not exists
+     * @param log The log to use while scanning. May be {@code null}
+     * @param listener The scan listener to use. May be {@code null}
      * @return The files that match this FileSet
      */
     public List<Path> getFiles(File projectBaseDir, Log log, ScanListener listener) {

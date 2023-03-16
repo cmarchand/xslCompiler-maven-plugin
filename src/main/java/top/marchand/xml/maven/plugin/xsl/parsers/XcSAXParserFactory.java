@@ -57,7 +57,7 @@ public class XcSAXParserFactory extends SAXParserFactory {
             this.innerParser=innerParser;
         }
 
-        @Override
+        @Override @SuppressWarnings("deprecation")
         public Parser getParser() throws SAXException {
             return innerParser.getParser();
         }
@@ -66,7 +66,6 @@ public class XcSAXParserFactory extends SAXParserFactory {
         public XMLReader getXMLReader() throws SAXException {
             XMLReader reader = innerParser.getXMLReader();
             if(thEntityResolver!=null && thEntityResolver.get()!=null) {
-                System.out.println("XXXXXXX XMLReader with EntityResolver XXXXXXX");
                 reader.setEntityResolver(thEntityResolver.get());
             }
             return reader;

@@ -57,7 +57,7 @@ public class DirectoryScanner {
     private ScanListener listener;
     
     /**
-     * Constructs a DirectoryScanner on <tt>baseDir</tt>, with default includes
+     * Constructs a DirectoryScanner on {@code baseDir}, with default includes
      * and default excludes.
      * @param baseDir The directory to scan
      * @param log The maven logger to use
@@ -76,7 +76,7 @@ public class DirectoryScanner {
     /**
      * Constructs a DirectoryScanner for the specified FileSet
      * @param fileset The descriptoin of which files to get
-     * @param projectBaseDir. The project base dir, to relocate {@link #baseDir} if <tt>baseDir</tt> does not exists
+     * @param projectBaseDir. The project base dir, to relocate {@link #baseDir} if {@code baseDir} does not exists
      * @param log The maven logger to use
      */
     public DirectoryScanner(final FileSet fileset, final File projectBaseDir, final Log log) {
@@ -155,20 +155,13 @@ public class DirectoryScanner {
                 boolean acceptable = false;
                 for(PathMatcher pm:includeMatchers) {
                     if(pm.matches(rel)) {
-//                        if(log!=null && log.isDebugEnabled())
-//                            log.debug("[INCLUDE] "+rel+" matches "+pm);
                         acceptable = true;
                         break;
-//                    } else {
-//                        if(log!=null && log.isDebugEnabled())
-//                            log.debug("[INCLUDE] "+rel+" does not match "+pm);
                     }
                 }
                 if(acceptable) {
                     for(PathMatcher pm:excludeMatchers) {
                         if(pm.matches(rel)) {
-//                            if(log!=null && log.isDebugEnabled())
-//                                log.debug("[EXCLUDE] "+rel+" matches "+pm);
                             acceptable = false;
                             break;
                         }

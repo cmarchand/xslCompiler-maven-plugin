@@ -36,7 +36,7 @@ import java.nio.file.Path;
 public interface ScanListener {
 
     /**
-     * Call when <tt>dir</tt> is being scanned
+     * Call when {@code dir} is being scanned
      * @param dir The file scanned
      */
     public void scanning(File dir);
